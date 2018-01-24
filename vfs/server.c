@@ -2,14 +2,20 @@
 #include <sys/signal.h>
 #include <sys/wait.h>
 #include "cpu.h"
+#include "window.h"
+#include "glhelper.c"
 
+void event_callback(int type, float ts, int p1, int p2)
+{
+	printf("EVENT %d\n", type);
+	
+	
+}
 
 int main(int argc, char *argv[])
 {
 	int shmid;
-	io = shalloc(&shmid, sizeof(SharedMem));
-	
-	printf("Server Mem %p @ %d\n", io, shmid);
+	uint8_t *mem = shalloc(&shmid, SCREEN_W*SCREEN_H+256*4 + sizeof(IPC)*2);
 	
 	int pid = fork();
 	
@@ -26,17 +32,18 @@ int main(int argc, char *argv[])
 		death(NULL, NULL, -128);
 		
 	} else {
-		printf("Forked\n");
-		//~ init_platform();
-//		init_gl();
-		//~ GLFWvidmode*m = glfwGetVideoMode(glfwGetPrimaryMonitor());
-		//~ printf("%dx%d (%d,%d,%d) %d",m->width, m->height, m->redBits, m->greenBits, m->blueBits, m->refreshRate);
-		//~ render_loop(1.0/59);
-		//~ char data[] = {100,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31, 32, 33,34,35};
-		//~ int type=0;
+		printf("PID %d\n",pid);
+		io.screen = mem;
+		io.palette = mem+SCREEN_W*SCREEN_H;
+		IPC *ipc = (IPC*)(io.palette + 256*4);
+		ipc_init(ipc, ipc+1);
+		win_init(event_callback);
+		
 		int child_term = 0;
+		double prev_t = win_time();
 		while(!child_term)
 		{
+			
 			int status, e;
 			if ((e=waitpid(-1, &status, WNOHANG)) > 0) {
 				if (WIFEXITED(status)) {
@@ -53,11 +60,14 @@ int main(int argc, char *argv[])
 				printf("WAITPID %d\n",e);
 				child_term  = 1;
 			}
-
-			printf("%d ", io->screen[0]);
-			fflush(stdout);
-			usleep(500000);
+			double t = win_time() - prev_t;
+			prev_t += t;
+			//~ printf("%f ", 1.0/t);
+			//~ fflush(stdout);
+			clear(0.0, 0.31, 0.23);
+			win_update();
 		}
+		win_fini();
 		kill(pid, SIGKILL);
 		waitpid(-1, NULL, 0);
 		death(NULL, NULL, 0);

@@ -4,22 +4,20 @@
 #define SCREEN_W 256
 #define SCREEN_H 144
 
-typedef struct s_SharedMem SharedMem;
-
-struct s_SharedMem {
-	uint8_t palette[256][4];
-	uint8_t screen[SCREEN_W*SCREEN_H];
-};
-
 // Global shared memory
-SharedMem *io = 0;
-//~ int shmid = 0;
+struct {
+	uint8_t *palette;
+	uint8_t *screen;
+} io;
 
 void cpu_init(const char *shmid_str)
 {
 	char * endptr;
 	int shmid = (int)strtol(shmid_str, &endptr,16);
-	io = shalloc(&shmid, 0);
-	printf("Connected to CPU: %p", io);
+	uint8_t *mem = shalloc(&shmid, 0);
+	io.screen = mem;
+	io.palette = io.screen + SCREEN_W*SCREEN_H;
+	IPC *ipc = (IPC*)(io.palette + 256*4);
+	ipc_init(ipc+1, ipc);
 }
 

@@ -49,9 +49,9 @@ struct s_Package {
 
 
 IPC *g_send, *g_recv;
-Package g_pkgs;
-int g_connected;
-int g_parent;
+Package g_pkgs = {0};
+//~ int g_connected;
+//~ int g_parent;
 
 
 void death(const char *title, const char *err_str, int errid)
@@ -113,6 +113,14 @@ void *shalloc(int *shmid, int size)
 	if (mem == (void*)-1)
 		death("shmat", "" , 3);
 	return mem;
+}
+
+void ipc_init(IPC *send, IPC *recv)
+{
+	memset(&g_pkgs, 0, sizeof(Package));
+	g_pkgs.next = g_pkgs.prev = &g_pkgs;
+	g_send = send;
+	g_recv = recv;
 }
 
 //~ int ipc_connect(int shmid, int size)
@@ -184,7 +192,8 @@ static int pull()
 		g_recv->d = (d == BUF_SIZE)? 0 : d;
 	}
 	
-	pull();
+	return pull();
+	
 }
 
 static inline int get_free(void)
@@ -208,8 +217,8 @@ static inline void send1(u64 ebyte)
 
 void ipc_send(int len, int type, u64 *data)
 {
-	if (!g_connected)
-		return;
+	//~ if (!g_connected)
+		//~ return;
 
 	int tot = (len>>3)+!!(len&0x7);
 #ifdef DEBUG
