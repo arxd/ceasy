@@ -1,6 +1,14 @@
 #ifndef SHARE_H
 #define SHARE_H
 
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sched.h>
+#include <string.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+
 #define BUF_SIZE (4)//(0x1000>>3)-1)
 
 typedef unsigned long u64;
@@ -27,29 +35,41 @@ struct s_Package {
 	Package *next, *prev;
 };
 
-void ipc_free_pkg(Package *pkg);
-void ipc_send(int len, int type, u64 *data);
-int ipc_connect(int shmid, int parent);
-Package *ipc_recv_block(void);
+//~ void *shalloc(int *shmid, int size);
+//~ void ipc_free_pkg(Package *pkg);
+//~ void ipc_send(int len, int type, u64 *data);
+//~ int ipc_connect(int *shmid, int parent);
+//~ Package *ipc_recv_block(void);
 
-Package *ipc_recv(void);
-void ipc_yield(void);
-void ipc_debug(void);
+//~ Package *ipc_recv(void);
+//~ void ipc_yield(void);
+//~ void ipc_debug(void);
 
-#if __INCLUDE_LEVEL__ == 0
 
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sched.h>
-#include <string.h>
-#include <sys/shm.h>
 
 
 IPC *g_send, *g_recv;
 Package g_pkgs;
 int g_connected;
 int g_parent;
+
+
+void death(const char *title, const char *err_str, int errid)
+{	
+	if (title)
+		printf("%s:%d: %s\n", title, errid, err_str);
+	//~ if (fs_window)
+		//~ glfwDestroyWindow(fs_window);
+	//~ if (w_window)
+		//~ glfwDestroyWindow(w_window);
+	//~ glfwTerminate();
+	//~ if (io)
+		//~ shfree(
+		//~ shmctl (shmid, IPC_RMID, 0);
+	exit(errid);
+
+}
+
 
 
 
@@ -82,28 +102,41 @@ void ipc_yield(void)
 	sched_yield();
 }
 
-int ipc_connect(int shmid, int parent)
+void *shalloc(int *shmid, int size)
 {
-	memset(&g_pkgs, 0, sizeof(Package));
-	g_pkgs.next = g_pkgs.prev = &g_pkgs;
-
-	g_parent = parent;
-	g_connected = 1;
-	void *mem = shmat(shmid, NULL, 0);
-	if (mem == (void*)-1) {
-		mem = malloc(sizeof(IPC)*2);
-		g_connected = 0;
+	if (size) {
+		*shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+		if (*shmid < 0)
+			death("shmget", "", 2);
 	}
-	if (parent) {
-		memset(mem, 0, sizeof(IPC)*2);
-		g_send = (IPC*) mem;
-		g_recv = ((IPC*)mem)+1;
-	} else {
-		g_recv = (IPC*) mem;
-		g_send = ((IPC*)mem)+1;
-	}
-	return g_connected;
+	void *mem = shmat(*shmid, NULL,0);
+	if (mem == (void*)-1)
+		death("shmat", "" , 3);
+	return mem;
 }
+
+//~ int ipc_connect(int shmid, int size)
+//~ {
+	//~ memset(&g_pkgs, 0, sizeof(Package));
+	//~ g_pkgs.next = g_pkgs.prev = &g_pkgs;
+
+	//~ g_parent = !!size;
+	//~ g_connected = 1;
+	//~ void *mem = shmat(shmid, NULL, 0);
+	//~ if (mem == (void*)-1) {
+		//~ mem = malloc(sizeof(IPC)*2);
+		//~ g_connected = 0;
+	//~ }
+	//~ if (parent) {
+		//~ memset(mem, 0, sizeof(IPC)*2);
+		//~ g_send = (IPC*) mem;
+		//~ g_recv = ((IPC*)mem)+1;
+	//~ } else {
+		//~ g_recv = (IPC*) mem;
+		//~ g_send = ((IPC*)mem)+1;
+	//~ }
+	//~ return g_connected;
+//~ }
 
 static int pull()
 {
@@ -252,4 +285,4 @@ void ipc_free_pkg(Package *pkg)
 }
 
 #endif
-#endif
+
