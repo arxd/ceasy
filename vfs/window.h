@@ -7,6 +7,7 @@ void win_init(EventCallback* callback);
 void win_fini();
 void win_update();
 double win_time();
-
+void win_size(int *w, int *h);
+int win_should_close();
 
 #endif

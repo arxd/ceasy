@@ -25,6 +25,19 @@ static GLFWwindow *window = 0;
 static GLFWwindow * w_window = 0;
 static GLFWwindow * fs_window = 0;
 
+int g_win_width, g_win_height;
+
+int win_should_close(void)
+{
+	return glfwWindowShouldClose(window);
+}
+
+void win_size(int *w, int *h)
+{
+	*w = g_win_width;
+	*h = g_win_height;
+}
+
 double win_time(void)
 {
 	return glfwGetTime();
@@ -46,16 +59,21 @@ static void win_death(const char *title, const char *err_str, int errid)
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	//~ glViewport(0, 0, width, height);
-	//~ fb_width = width;
-	//~ fb_height = height;
 	float monitor_aspect = (16.0/9.0);
-	printf("FBSIZZE %dx%d\n",width,height);
 	if (fabs((double)width /height - monitor_aspect) > 0.01) {
 		if ((double) width/height > monitor_aspect)
-			glfwSetWindowSize(window, height*monitor_aspect, height);
+			width = height*monitor_aspect;
 		else
-			glfwSetWindowSize(window, width, width/monitor_aspect);
+			height = width/monitor_aspect;
+		if (width < 256) {
+			width = 256;
+			height = 144;
+		}
+		glfwSetWindowSize(window, width, height);
+	} else {
+		g_win_width = width;
+		g_win_height = height;
+		glViewport(0, 0, width, height);
 	}
 }
 

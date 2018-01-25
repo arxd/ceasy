@@ -8,10 +8,9 @@ int main(int argc, char *argv[])
 		printf("ARG %d: %s\n", argc, argv[argc]);
 	cpu_init(argv[0]);
 
-	int x = 10;
-	while (x--) {
-		io.palette[0] = x+100;
-		sleep(1);
+	unsigned char x = 0;
+	while (1) {
+		io.vram[++x] = x;
 	}
 	return 0;
 }

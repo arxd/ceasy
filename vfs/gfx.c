@@ -585,7 +585,7 @@ void render_loop(double frame_time)
 			int status, e;
 			if ((e=waitpid(-1, &status, WNOHANG)) > 0) {
 				if (WIFEXITED(status)) {
-					printf("CHild exited status : %d\n", WEXITSTATUS(status));
+					printf("Child exited status : %d\n", WEXITSTATUS(status));
 					child_term = 1;
 				} else if (WIFSIGNALED(status)) {
 					printf("Child exited by signal: %d\n", WTERMSIG(status));
