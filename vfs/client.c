@@ -10,7 +10,8 @@ int main(int argc, char *argv[])
 
 	unsigned char x = 0;
 	while (1) {
-		io.vram[++x] = x;
+		io.vram[x] = x;
+		x++;
 	}
 	return 0;
 }

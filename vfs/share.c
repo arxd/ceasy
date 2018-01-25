@@ -35,6 +35,46 @@ struct s_Package {
 	Package *next, *prev;
 };
 
+typedef struct s_SharedMem SharedMem;
+struct s_SharedMem {
+	int shmid;
+	void *mem;
+};
+
+int shm_init(SharedMem *self, int size)
+{
+	memset(self, 0, sizeof(SharedMem));
+	if (size) {
+		self->shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+		if (self->shmid < 0) 
+			self->shmid = 0;
+	}
+	if (!self->shmid)
+		return 0;
+	// Attach
+	self->mem = shmat(self->shmid, NULL, 0);
+	if (self->mem == (void*)-1) {
+		if (size)
+			shmctl(self->shmid, IPC_RMID, 0);
+		memset(self, 0, sizeof(SharedMem));
+		return 0;
+	}
+	return 1;
+}
+
+void shm_fini(int status, SharedMem *self)
+{
+	if (self->shmid) {
+		printf("Release shmid\n");
+		shmctl (self->shmid, IPC_RMID, 0);
+	}
+	if (self->mem) {
+		printf("Detach mem segment\n");
+		shmdt(self->mem);
+	}
+	memset(self, 0, sizeof(SharedMem));
+}
+
 //~ void *shalloc(int *shmid, int size);
 //~ void ipc_free_pkg(Package *pkg);
 //~ void ipc_send(int len, int type, u64 *data);
@@ -54,21 +94,6 @@ Package g_pkgs = {0};
 //~ int g_parent;
 
 
-void death(const char *title, const char *err_str, int errid)
-{	
-	if (title)
-		printf("%s:%d: %s\n", title, errid, err_str);
-	//~ if (fs_window)
-		//~ glfwDestroyWindow(fs_window);
-	//~ if (w_window)
-		//~ glfwDestroyWindow(w_window);
-	//~ glfwTerminate();
-	//~ if (io)
-		//~ shfree(
-		//~ shmctl (shmid, IPC_RMID, 0);
-	exit(errid);
-
-}
 
 
 
@@ -102,18 +127,12 @@ void ipc_yield(void)
 	sched_yield();
 }
 
-void *shalloc(int *shmid, int size)
-{
-	if (size) {
-		*shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-		if (*shmid < 0)
-			death("shmget", "", 2);
-	}
-	void *mem = shmat(*shmid, NULL,0);
-	if (mem == (void*)-1)
-		death("shmat", "" , 3);
-	return mem;
-}
+
+//~ void *shalloc(int *shmid, int size)
+//~ {
+//~ }
+
+//~ void shfree(
 
 void ipc_init(IPC *send, IPC *recv)
 {

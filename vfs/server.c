@@ -7,6 +7,61 @@
 #include "cpu.h"
 #include "window.h"
 #include "glhelper.c"
+#include "util.c"
+
+typedef struct s_SubProc SubProc;
+struct s_SubProc {
+	int pid;
+	int status;
+};
+
+int subproc_init(SubProc *self)
+{
+	memset(self, 0, sizeof(SubProc));
+	self->pid = fork();
+	if (self->pid < 0) {
+		self->pid = 0;
+		return -1;
+	}
+	printf("Forked child %d\n", self->pid);
+	return self->pid;
+}
+
+void subproc_fini(int status, SubProc *self)
+{
+	if (!self->status) {
+		printf("Killing child %d\n", self->pid);
+		kill(self->pid, SIGKILL);
+	} else if (self->status < 0)
+		printf("Child killed by signal %d\n", -self->status);
+	else if (self->status == 1)
+		printf("Child exited normally\n");
+	else
+		printf("Child exited with error %d\n", self->status);
+	waitpid(self->pid, NULL, 0);
+}
+
+int subproc_status(SubProc *self)
+{
+	if (self->status)
+		return self->status;
+	int wpid = waitpid(-1, &self->status, WNOHANG);
+	if (wpid < 0)
+		ABORT(1, "WaitPID Failed %d", wpid);
+	if (wpid == 0)
+		return 0;
+	
+	if (WIFEXITED(self->status))
+		self->status =  1 + WEXITSTATUS(self->status); 
+	else if (WIFSIGNALED(self->status))
+		self->status = -WTERMSIG(self->status);
+	else
+		self->status = -1;
+	return self->status;
+}
+
+SharedMem g_shm = {0};
+SubProc g_subproc = {0};
 
 void event_callback(int type, float ts, int p1, int p2)
 {
@@ -24,24 +79,23 @@ void game_init(void)
 	
 	char *args[] = {"aPos", "uVram", "uSize", NULL};
 	g_shader = shader_new("\
-		#version 300 es\n\
-		in vec2 aPos; \n\
+		#version 100\n\
+		attribute vec2 aPos; \n\
 		void main() \n\
 		{ \n\
 			gl_Position = vec4(aPos, 0.0, 1.0); \n\
 		}", 
 	"\
-		#version 300 es\n\
+		#version 100\n\
 		precision mediump float;\n\
-		uniform lowp usampler2D uVram; \n\
+		uniform sampler2D uVram; \n\
 		uniform vec2 uSize;\n\
-		out vec4 fragColor;\n\
 		void main() { \n\
 			//gl_FragColor = texture2D(uVram, vTex);\n\
 			//fragColor = (gl_FragCoord.x<25.0) ? vec4(uSize, 0.0, 1.0) : vec4(uSize, 1.0, 1.0);\n\
 			int r = int(gl_FragCoord.y *144.0 / uSize.y);\n\
 			int c = int(gl_FragCoord.x * 256.0 / uSize.x);\n\
-			fragColor = vec4(bool(r%8)?1.0: 0.0, bool(c%8)?1.0:0.0, 0.0, 1.0);\n\
+			gl_FragColor = vec4((r==8)?1.0: 0.0, (c==10)?1.0:0.0, 0.0, 1.0);\n\
 		}", args);
 
 	// background vertexes
@@ -77,30 +131,16 @@ void game_update(void)
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	int err;
 	if ( (err=glGetError()) )
-		death("glError", "Error", err);
+		ABORT(3, "Error %d", err);
 	
 	
 }
 
 int child_status()
 {
-	int status;
-	int wpid = waitpid(-1, &status, WNOHANG);
-	if (wpid < 0)
-		death("WaitPID Failed", "", wpid);
-	if (wpid == 0)
-		return 0;
-	
-	if (WIFEXITED(status))
-		return 1 + WEXITSTATUS(status); 
-	
-	if (WIFSIGNALED(status))
-		return  -WTERMSIG(status);
-	
-	return -1;
 }
 
-int main_child(int shmid, int argc, char *argv[])
+void main_child(int argc, char *argv[])
 {
 	char *prog = argv[1];
 	int a;
@@ -108,58 +148,62 @@ int main_child(int shmid, int argc, char *argv[])
 		argv[a] = argv[a+1];
 	argv[a] = NULL;
 	argv[0] = alloca(10);
-	snprintf(argv[0], 10, "%x", shmid);
+	snprintf(argv[0], 10, "%x", g_shm.shmid);
 	execv(prog, argv);
-	printf("The program '%s' could not be found", prog);
-	death(NULL, NULL, -128);
-	return 0;
+	ABORT(0, "The program '%s' could not be found", prog);
 }
 
-void vram_init(uint8_t *mem)
+void vram_init()
 {
-	io.vram = mem;
+	io.vram = g_shm.mem;
 	
 }
 
-int main_parent(uint8_t *mem)
+void main_shutdown(void)
 {
-	vram_init(mem);
-	IPC *ipc = (IPC*)(mem + 256*256);
+	
+}
+
+
+void main_parent()
+{
+	vram_init();
+	
+	IPC *ipc = (IPC*)(g_shm.mem + 256*256);
 	ipc_init(ipc, ipc+1);
-	win_init(event_callback);
-	game_init();
 	
-	int stat = 0;
-	double prev_t = win_time();
-	while (!(stat = child_status()) && !win_should_close()) {
-		game_update();
-		win_update();
+	//~ win_init(event_callback);
+	//~ game_init();
+	while(!subproc_status(&g_subproc)) {
+		printf("MAIN\n");
+		sleep(1);
 	}
+	//~ int stat = 0;
+	//~ double prev_t = win_time();
+	//~ while (!(stat = child_status()) && !win_should_close()) {
+		//~ game_update();
+		//~ win_update();
+	//~ }
 	
-	printf("Exiting\n");
-	if (!stat) {
-		printf("Killing child\n");
-		kill(-1, SIGKILL);
-	} else if (stat < 0)
-		printf("Child killed by signal %d\n", -stat);
-	else if (stat == 1)
-		printf("Child exited normally\n");
-	else
-		printf("Child exited with error %d\n", stat);
-	win_fini();
-	waitpid(-1, NULL, 0);
-	//~ death(NULL, NULL, 0);
-	return 0;
+	//~ printf("Exiting\n");
+	//~ win_fini();
+	//~ waitpid(-1, NULL, 0);
+	ABORT(0, "Goodbye");
 }
-
 
 int main(int argc, char *argv[])
 {
-	int shmid;
-	uint8_t *mem = shalloc(&shmid, 256*256 + sizeof(IPC)*2);
-
-	if (fork())
-		return main_parent(mem);
-	return main_child(shmid, argc, argv);
+	// Setup shared mem
+	if (!shm_init(&g_shm, 256*256 + sizeof(IPC)*2))
+		ABORT(1, "Couldn't created shared memory segment");
+	on_exit(shm_fini, &g_shm);
 	
+	// Fork
+	if (subproc_init(&g_subproc) < 0)
+		ABORT(2, "Couldn't fork");
+	if (g_subproc.pid) {
+		on_exit(subproc_fini, &g_subproc);
+		main_parent();  // doesn't return
+	}
+	main_child(argc, argv); // doesn't return
 }

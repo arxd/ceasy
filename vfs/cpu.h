@@ -9,16 +9,22 @@ struct {
 	uint8_t *vram;
 } io;
 
-void cpu_init(const char *shmid_str)
+
+SharedMem g_shm;
+
+int cpu_init(const char *shmid_str)
 {
 	char * endptr;
 	int shmid = (int)strtol(shmid_str, &endptr, 16);
 	if (shmid_str == endptr)
-		death("Error", "Must run via ./server", -1);
-	uint8_t *mem = shalloc(&shmid, 0);
-	io.vram = mem;
-	//~ io.palette = io.screen + SCREEN_W*SCREEN_H;
-	IPC *ipc = (IPC*)(mem + 256*256);
+		return 0;
+	
+	if (!shm_init(&g_shm, 0))
+		return 0;
+
+	on_exit(shm_fini, &g_shm);
+	io.vram = g_shm.mem;
+	IPC *ipc = (IPC*)(g_shm.mem + 256*256);
 	ipc_init(ipc+1, ipc);
 }
 
