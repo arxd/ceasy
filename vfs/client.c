@@ -27,10 +27,10 @@ int main(int argc, char *argv[])
 {
 	cpu_init(argv[0]);
 
-	unsigned char x = 0;
-	while (1) {
+	unsigned char x = 6;
+	while (--x) {
 		vram[x] = x;
-		x++;
+		sleep(1);
 	}
-	return 0;
+	return 1;
 }

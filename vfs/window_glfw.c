@@ -14,8 +14,6 @@ void win_on_exit(int status, void *arg);
 
 #if __INCLUDE_LEVEL__ == 0
 
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -24,7 +22,6 @@ void win_on_exit(int status, void *arg);
 #include <GLFW/glfw3.h>
 
 #include "util.c"
-#include "window.h"
 
 typedef struct s_Window Window;
 struct s_Window {

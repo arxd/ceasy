@@ -9,7 +9,7 @@ typedef struct s_Shader Shader;
 struct s_Shader {
 	GLuint id;
 	GLuint argc;
-	GLuint args[];
+	GLuint args[16];
 };
 
 typedef struct s_Texture Texture;
@@ -22,21 +22,19 @@ struct s_Texture {
 	//~ void *data;
 };
 
-Shader *shader_new(const char *vert_src, const char *frag_src, char *args[]);
+int shader_init(Shader *self, const char *vert_src, const char *frag_src, char *args[]);
+void shader_fini(Shader *self);
+void shader_on_exit(int status, void *arg);
+
 void clear(GLfloat r, GLfloat g, GLfloat b);
 void tex_set(Texture *self, void * pixels);
+void error_check(void);
 
 #if __INCLUDE_LEVEL__ == 0
 
 #include <stdio.h>
 #include <malloc.h>
-
-static void gl_death(const char *title, const char *err_str, int errid)
-{	
-	if (title)
-		printf("%s:%d: %s\n", title, errid, err_str);
-	exit(errid);
-}
+#include "util.c"
 
 void clear(GLfloat r, GLfloat g, GLfloat b)
 {
@@ -44,6 +42,12 @@ void clear(GLfloat r, GLfloat g, GLfloat b)
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
+void error_check(void)
+{
+	int err;
+	if ( (err=glGetError()) )
+		ABORT(3, "GL Error %d", err);
+}
 
 void tex_set(Texture *self, void * pixels )
 {
@@ -53,7 +57,7 @@ void tex_set(Texture *self, void * pixels )
 		glTexImage2D(GL_TEXTURE_2D, 0, self->internal_format, self->w, self->h, 0, self->format, self->type,  pixels);
 		int err;
 		if ( (err=glGetError()) )
-			gl_death("glTexImage2d", "Error", err);
+			ABORT(20, "glTexImage2d", "Error", err);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -81,58 +85,87 @@ int glsl_check(
 		GLint len = 0;
 		get_param(prog, GL_INFO_LOG_LENGTH, &len);
 		if ( len > 0 ) {
-			char* log = malloc(sizeof(char) * len);
+			char* log = alloca(sizeof(char) * len);
 			get_log(prog, len, NULL, log);
-			printf("Shader Error : %d : %s", prog, log);
-			return -1;
+			printf("Compile Error : %d : %s\n", prog, log);
 		}
+		return -1;
 	}
 	return 0;
 }
 
-Shader *shader_new(const char *vert_src, const char *frag_src, char *args[])
+void shader_fini(Shader *self)
 {
-	int argc = -1;
-	while (args[++argc]);
-		
-	Shader *prog = malloc(sizeof(Shader) + sizeof(GLuint)*argc);
-	prog->argc = argc;
+	if (self->id){
+		DEBUG("Program deleted %d", self->id);
+		glDeleteProgram(self->id);
+	}
+	self->id = 0;
+}
+
+void shader_on_exit(int status, void *arg)
+{
+	shader_fini((Shader*)arg);
+}
+
+int shader_init(Shader *self, const char *vert_src, const char *frag_src, char *args[])
+{
+	self->id = 0;
+	self->argc = -1;
+	while (args[++self->argc]);
 	
+	//~ Shader *prog = malloc(sizeof(Shader) + sizeof(GLuint)*argc);
+	//~ prog->argc = argc;
+	ASSERT (self->argc < 16);
+
 	GLuint vert_shader, frag_shader;
 	// Compile Vertex Shader
 	vert_shader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vert_shader, 1, &vert_src, NULL);
 	glCompileShader(vert_shader);
 	if(glsl_check(glGetShaderiv,  glGetShaderInfoLog, vert_shader, GL_COMPILE_STATUS))
-		return NULL;
+		return 0;
+	
 	// Compile Fragment Shader
 	frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(frag_shader, 1, &frag_src, NULL);
 	glCompileShader(frag_shader);
-	if(glsl_check(glGetShaderiv,  glGetShaderInfoLog, frag_shader, GL_COMPILE_STATUS))
-		return NULL;
-	// Link the program
-	prog->id = glCreateProgram();
-	glAttachShader(prog->id, vert_shader);
-	glAttachShader(prog->id, frag_shader);
-	glLinkProgram(prog->id);
-	if(glsl_check(glGetProgramiv,  glGetProgramInfoLog, prog->id, GL_LINK_STATUS))
-		return NULL;
+	if(glsl_check(glGetShaderiv,  glGetShaderInfoLog, frag_shader, GL_COMPILE_STATUS)) {
+		glDeleteShader(vert_shader);
+		return 0;
+	}
 	
-	for (int a =0; a < argc; ++a) {
+	// Link the program
+	self->id = glCreateProgram();
+	glAttachShader(self->id, vert_shader);
+	glAttachShader(self->id, frag_shader);
+	glLinkProgram(self->id);
+	if(glsl_check(glGetProgramiv,  glGetProgramInfoLog, self->id, GL_LINK_STATUS)) {
+		glDeleteShader(vert_shader);
+		glDeleteShader(frag_shader);
+		shader_fini(self);
+		return 0;
+	}	
+	// figure out program locations from arguments
+	for (int a =0; a < self->argc; ++a) {
 		switch (args[a][0]) {
 			case 'a':
-				prog->args[a] = glGetAttribLocation(prog->id, args[a]);
-				glEnableVertexAttribArray(prog->args[a]);
+				self->args[a] = glGetAttribLocation(self->id, args[a]);
+				//~ glEnableVertexAttribArray(prog->args[a]);
 			break;
-			case 'u': prog->args[a] = glGetUniformLocation(prog->id, args[a]); break;
-			default: printf("must be attribute or uniform: %s",args[a]); return NULL;
+			case 'u': self->args[a] = glGetUniformLocation(self->id, args[a]); break;
+			default: printf("WARNING: Must be attribute or uniform: %s",args[a]); break;
 		}
 	}
-	glValidateProgram(prog->id);
-	glsl_check(glGetProgramiv,  glGetProgramInfoLog, prog->id, GL_VALIDATE_STATUS);
+	
+	glDeleteShader(vert_shader); // flagged for deletion when program is deleted
+	glDeleteShader(frag_shader); // flagged for deletion when program is deleted
+	//~ glValidateProgram(prog->id);
+	//~ if(glsl_check(glGetProgramiv,  glGetProgramInfoLog, prog->id, GL_VALIDATE_STATUS))
+		//~ return NULL;
 
-	return prog;
+	DEBUG("Program compiled %d", self->id);
+	return 1;
 }
 
 

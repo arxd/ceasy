@@ -70,7 +70,7 @@ void subproc_fini(SubProc *self)
 	else if (self->status == 1)
 		DEBUG("Child exited normally");
 	else
-		DEBUG("Child exited with error %d", self->status);
+		DEBUG("Child exited with error %d", self->status-1);
 	waitpid(self->pid, NULL, 0);
 }
 

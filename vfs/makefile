@@ -8,13 +8,13 @@ build/client.o: client.c share.c util.c
 build/share.o: share.c util.c
 	clang -c -o $@ $< $(CFLAGS)
 
-build/glhelper.o: glhelper.c
+build/glhelper.o: glhelper.c util.c
 	clang -c -o $@ $< $(CFLAGS)
 
 build/util.o: util.c
 	clang -c -o $@ $< $(CFLAGS)
 	
-build/subproc.o: subproc.c
+build/subproc.o: subproc.c util.c
 	clang -c -o $@ $< $(CFLAGS)
 
 build/window_glfw.o: window_glfw.c util.c
@@ -22,6 +22,9 @@ build/window_glfw.o: window_glfw.c util.c
 	
 build/server.o: server.c subproc.c share.c window_glfw.c glhelper.c util.c
 	clang -c -o $@ $< $(CFLAGS)
+
+
+
 
 all: client server;
 

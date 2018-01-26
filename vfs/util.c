@@ -5,9 +5,12 @@
 
 #ifdef EBUG
 #define DEBUG(fmt, ...)   _debug(__FILE__, __LINE__, fmt, ## __VA_ARGS__)
+#define ASSERT(condition) if (!(condition)) ABORT(1, #condition)
 #else
 #define DEBUG(fmt, ...) do{}while(0)
+#define ASSERT(condition) do{}while(0)
 #endif
+
 
 void _abort(int code, char *file, int line, const char *fmt, ...) __attribute__((noreturn));
 void _debug(char *file, int line, const char *fmt, ...);

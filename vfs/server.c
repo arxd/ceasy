@@ -1,4 +1,4 @@
-#include <time.h>
+#include <unistd.h>
 #include <stdio.h>
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
@@ -19,71 +19,49 @@ void event_callback(int type, float ts, int p1, int p2)
 	
 	
 }
-Texture g_tex = {0, 256,256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
-Shader *g_shader;
+Texture g_vram_tex = {0, 256,256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
+Shader g_shader;
 
-//~ void termination_handler(int signum)
-//~ {
-	
-//~ }
-
-//~ int
-//~ main (void)
-//~ {
-  //~ …
-  //~ if (signal (SIGINT, termination_handler) == SIG_IGN)
-    //~ signal (SIGINT, SIG_IGN);
-  //~ if (signal (SIGHUP, termination_handler) == SIG_IGN)
-    //~ signal (SIGHUP, SIG_IGN);
-  //~ if (signal (SIGTERM, termination_handler) == SIG_IGN)
-    //~ signal (SIGTERM, SIG_IGN);
-  //~ …
-//~ }
 void game_init(void)
 {
-	tex_set(&g_tex, vram);
+	//~ tex_set(&g_vram_tex, vram);
 	
-	char *args[] = {"aPos", "uVram", "uSize", NULL};
-	g_shader = shader_new("\
+	char *args[] = {"aPos", "uSize", NULL};
+	if (!shader_init(&g_shader, "\
 		#version 100\n\
 		attribute vec2 aPos; \n\
 		void main() \n\
 		{ \n\
 			gl_Position = vec4(aPos, 0.0, 1.0); \n\
-		}", 
-	"\
+		}", "\
 		#version 100\n\
 		precision mediump float;\n\
-		uniform sampler2D uVram; \n\
+		//~ //uniform sampler2D uVram; \n\
 		uniform vec2 uSize;\n\
 		void main() { \n\
-			//gl_FragColor = texture2D(uVram, vTex);\n\
-			//fragColor = (gl_FragCoord.x<25.0) ? vec4(uSize, 0.0, 1.0) : vec4(uSize, 1.0, 1.0);\n\
+			//~ //gl_FragColor = texture2D(uVram, vTex);\n\
+			//~ //fragColor = (gl_FragCoord.x<25.0) ? vec4(uSize, 0.0, 1.0) : vec4(uSize, 1.0, 1.0);\n\
 			int r = int(gl_FragCoord.y *144.0 / uSize.y);\n\
 			int c = int(gl_FragCoord.x * 256.0 / uSize.x);\n\
-			gl_FragColor = vec4((r==8)?1.0: 0.0, (c==10)?1.0:0.0, 0.0, 1.0);\n\
-		}", args);
-
+			gl_FragColor = vec4((r==4)?1.0:0.0, (c==2)?1.0:0.0, 0.5, 1.0);\n\
+		}", args))
+		ABORT(1, "Couldn't create shader");
+	on_exit(shader_on_exit, &g_shader);
+	
 	// background vertexes
 	GLuint rect;
 	glGenBuffers(1, &rect);
 	glBindBuffer(GL_ARRAY_BUFFER, rect);
 	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_shader->args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_shader->args[0]);
+	glVertexAttribPointer(g_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_shader.args[0]);
 
-	// texture coords
-	//~ glGenBuffers(1, &vbo_bg_tex);
-	//~ glBindBuffer(GL_ARRAY_BUFFER, vbo_bg_tex);
-	//~ glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bg_tex_coords, GL_STATIC_DRAW);
-	//~ glVertexAttribPointer(bg_shader->args[1], 2, GL_FLOAT, 0, 0, 0);
-	//~ glEnableVertexAttribArray(bg_shader->args[1]);
-	
 	// uniform vram
 	//glUniform1i(g_shader->args[1], 0);
 
-	glUseProgram(g_shader->id);
+	glUseProgram(g_shader.id);
+	DEBUG("Game Init Finished");
 
 }
 
@@ -93,7 +71,7 @@ void game_update(void)
 	clear(0.0, 0.1, 0.5);
 	int w,h;
 	win_size(&w, &h);
-	glUniform2f(g_shader->args[2],w, h);
+	glUniform2f(g_shader.args[1],w, h);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	int err;
 	if ( (err=glGetError()) )
@@ -129,8 +107,6 @@ int main(int argc, char *argv[])
 	on_exit(subproc_on_exit, &g_subproc);
 	
 	// Start initialization
-	vram_init();
-	
 	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
 	//~ ipc_init(ipc, ipc+1);
 	
@@ -138,10 +114,13 @@ int main(int argc, char *argv[])
 		ABORT(3, "win_init failed");
 	on_exit(win_on_exit, 0);
 	
-	//~ while(!subproc_status(&g_subproc)) {
-		//~ printf("MAIN\n");
-		//~ sleep(1);
-	//~ }
+	vram_init();
+	game_init();
+	
+	while(!(subproc_status(&g_subproc) || win_should_close())) {
+		game_update();
+		win_update();
+	}
 
 	ABORT(0, "Goodbye");
 }
