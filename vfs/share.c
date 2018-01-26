@@ -1,28 +1,22 @@
 #ifndef SHARE_H
 #define SHARE_H
 
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sched.h>
-#include <string.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
+#include <stdint.h>
 
-#define BUF_SIZE (4)//(0x1000>>3)-1)
+#define IPC_BUF_SIZE (4)//(0x1000>>3)-1)
 
-typedef unsigned long u64;
+typedef struct s_IPC IPC;
+typedef struct s_Package Package;
+typedef struct s_SharedMem SharedMem;
 
-typedef struct s_IPC {
+struct s_IPC {
 	volatile int f; // free start
 	volatile int d; // data start
 	volatile int cur;
 	volatile int remain;
-	u64 buf[BUF_SIZE];
-} IPC;
+	uint64_t buf[IPC_BUF_SIZE];
+};
 
-
-typedef struct s_Package Package;
 struct s_Package {
 	int len;
 	int type;
@@ -30,21 +24,36 @@ struct s_Package {
 	//~ int cur;
 	union {
 		void *pdata;
-		u64 *ldata;
+		uint64_t *ldata;
 	};
 	Package *next, *prev;
 };
 
-typedef struct s_SharedMem SharedMem;
 struct s_SharedMem {
 	int shmid;
 	void *mem;
 };
 
+int shm_init(SharedMem *self, int size);
+void shm_fini(SharedMem *self);
+void shm_on_exit(int status, void *arg);
+
+#if __INCLUDE_LEVEL__ == 0 || defined(INCLUDE_INLINE)
+
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sched.h>
+#include <string.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include "util.c"
+
+
 int shm_init(SharedMem *self, int size)
 {
-	memset(self, 0, sizeof(SharedMem));
 	if (size) {
+		memset(self, 0, sizeof(SharedMem));
 		self->shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
 		if (self->shmid < 0) 
 			self->shmid = 0;
@@ -62,22 +71,27 @@ int shm_init(SharedMem *self, int size)
 	return 1;
 }
 
-void shm_fini(int status, SharedMem *self)
+void shm_fini(SharedMem *self)
 {
 	if (self->shmid) {
-		printf("Release shmid\n");
+		DEBUG("Release shmid");
 		shmctl (self->shmid, IPC_RMID, 0);
 	}
 	if (self->mem) {
-		printf("Detach mem segment\n");
+		DEBUG("Detach mem segment");
 		shmdt(self->mem);
 	}
 	memset(self, 0, sizeof(SharedMem));
 }
 
+void shm_on_exit(int status, void *arg)
+{
+	shm_fini((SharedMem*)arg);
+}
+
 //~ void *shalloc(int *shmid, int size);
 //~ void ipc_free_pkg(Package *pkg);
-//~ void ipc_send(int len, int type, u64 *data);
+//~ void ipc_send(int len, int type, uint64_t *data);
 //~ int ipc_connect(int *shmid, int parent);
 //~ Package *ipc_recv_block(void);
 
@@ -104,7 +118,7 @@ void print_stars(IPC *ipc)
 	int s[] = {ipc->d, ipc->f};
 	int p = (ipc->d > ipc->f);
 	int i=-1;
-	while (++i < BUF_SIZE)
+	while (++i < IPC_BUF_SIZE)
 		printf("%c", (i == ipc->f)? '.' : ((i < s[p]) ? c[p] : ((i < s[p^1])? c[p^1] : c[p])));
 	printf(" %2d,%2d r:%d ", s[0], s[1], ipc->remain);
 	if (ipc->remain > 5)
@@ -127,12 +141,6 @@ void ipc_yield(void)
 	sched_yield();
 }
 
-
-//~ void *shalloc(int *shmid, int size)
-//~ {
-//~ }
-
-//~ void shfree(
 
 void ipc_init(IPC *send, IPC *recv)
 {
@@ -174,7 +182,7 @@ static int pull()
 	if (!len)
 		return 0;
 	if (len < 0)
-		len = BUF_SIZE - d;
+		len = IPC_BUF_SIZE - d;
 	
 	Package *pkg = g_pkgs.prev;
 	if (g_recv->remain == 0) {
@@ -184,7 +192,7 @@ static int pull()
 		pkg->prev = g_pkgs.prev;
 		pkg->prev->next = pkg;
 		g_pkgs.prev = pkg;
-		u64 hdr = g_recv->buf[d];
+		uint64_t hdr = g_recv->buf[d];
 		pkg->len = (int)hdr;
 		pkg->type = (int)(hdr>>32);
 		g_recv->remain = ((pkg->len)>>3) + !!(pkg->len&0x7);
@@ -194,9 +202,9 @@ static int pull()
 		printf("R   : ");print_stars(g_recv);printf("   0/%2d    [%d/%c]\n", g_recv->remain, pkg->len, pkg->type+'A' );
 		fflush(stdout);
 #endif
-		g_recv->d = (d+1)%BUF_SIZE;
+		g_recv->d = (d+1)%IPC_BUF_SIZE;
 		if (g_recv->remain)
-			pkg->pdata = malloc(sizeof(u64)*g_recv->remain);
+			pkg->pdata = malloc(sizeof(uint64_t)*g_recv->remain);
 
 	} else {
 		if (g_recv->remain < len)
@@ -208,7 +216,7 @@ static int pull()
 		g_recv->remain -= len;
 		while (len--)
 			pkg->ldata[g_recv->cur++] = g_recv->buf[d++];
-		g_recv->d = (d == BUF_SIZE)? 0 : d;
+		g_recv->d = (d == IPC_BUF_SIZE)? 0 : d;
 	}
 	
 	return pull();
@@ -219,22 +227,22 @@ static inline int get_free(void)
 {
 	int d = g_send->d;
 	int f = g_send->f;
-	return (d <= f) ? (BUF_SIZE - f + !!d) : d-f;
+	return (d <= f) ? (IPC_BUF_SIZE - f + !!d) : d-f;
 }
 
-static inline void send1(u64 ebyte)
+static inline void send1(uint64_t ebyte)
 {
 	int free;
-	//~ if(g_parent){printf("Free %d, %d, %d (%d)\n", free, g_send->d, g_send->f, BUF_SIZE); fflush(stdout);}
+	//~ if(g_parent){printf("Free %d, %d, %d (%d)\n", free, g_send->d, g_send->f, IPC_BUF_SIZE); fflush(stdout);}
 	while ((free = get_free()) < 2) {
 		pull();
 		ipc_yield();
 	}
 	g_send->buf[g_send->f] = ebyte;
-	g_send->f = (g_send->f == BUF_SIZE-1)? 0 : (g_send->f + 1);
+	g_send->f = (g_send->f == IPC_BUF_SIZE-1)? 0 : (g_send->f + 1);
 }
 
-void ipc_send(int len, int type, u64 *data)
+void ipc_send(int len, int type, uint64_t *data)
 {
 	//~ if (!g_connected)
 		//~ return;
@@ -244,7 +252,7 @@ void ipc_send(int len, int type, u64 *data)
 	printf("   S: ");print_stars(g_send);printf("   0/%2d    [%d/%c]\n", tot, len, type+'A');
 	fflush(stdout);
 #endif
-	send1(((u64)type<<32) | len);
+	send1(((uint64_t)type<<32) | len);
 	if(!len)
 		return;
 	
@@ -263,12 +271,12 @@ void ipc_send(int len, int type, u64 *data)
 		int f = g_send->f;
 		while (--free && --nlong)
 			g_send->buf[f++] = *data++;
-		g_send->f = (f==BUF_SIZE)?0:f;
+		g_send->f = (f==IPC_BUF_SIZE)?0:f;
 	}
 	// send the dregs
 	int xtra = len&0x7;
 	if (xtra) {
-		u64 x = 0;
+		uint64_t x = 0;
 		memcpy(&x, ((char*)data)+(len-xtra), xtra);
 #ifdef DEBUG
 		printf("   S: ");print_stars(g_send);printf("  %2d/%2d 0x%lx\n", tot, tot, x);
@@ -312,5 +320,6 @@ void ipc_free_pkg(Package *pkg)
 	free(pkg);
 }
 
+#endif
 #endif
 

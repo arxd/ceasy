@@ -1,67 +1,17 @@
-#include <unistd.h>
-#include <sys/signal.h>
-#include <sys/wait.h>
+#include <time.h>
+#include <stdio.h>
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
-#include "cpu.h"
-#include "window.h"
-#include "glhelper.c"
 #include "util.c"
+#include "window_glfw.c"
+#include "glhelper.c"
+#include "subproc.c"
+#include "share.c"
 
-typedef struct s_SubProc SubProc;
-struct s_SubProc {
-	int pid;
-	int status;
-};
-
-int subproc_init(SubProc *self)
-{
-	memset(self, 0, sizeof(SubProc));
-	self->pid = fork();
-	if (self->pid < 0) {
-		self->pid = 0;
-		return -1;
-	}
-	printf("Forked child %d\n", self->pid);
-	return self->pid;
-}
-
-void subproc_fini(int status, SubProc *self)
-{
-	if (!self->status) {
-		printf("Killing child %d\n", self->pid);
-		kill(self->pid, SIGKILL);
-	} else if (self->status < 0)
-		printf("Child killed by signal %d\n", -self->status);
-	else if (self->status == 1)
-		printf("Child exited normally\n");
-	else
-		printf("Child exited with error %d\n", self->status);
-	waitpid(self->pid, NULL, 0);
-}
-
-int subproc_status(SubProc *self)
-{
-	if (self->status)
-		return self->status;
-	int wpid = waitpid(-1, &self->status, WNOHANG);
-	if (wpid < 0)
-		ABORT(1, "WaitPID Failed %d", wpid);
-	if (wpid == 0)
-		return 0;
-	
-	if (WIFEXITED(self->status))
-		self->status =  1 + WEXITSTATUS(self->status); 
-	else if (WIFSIGNALED(self->status))
-		self->status = -WTERMSIG(self->status);
-	else
-		self->status = -1;
-	return self->status;
-}
-
-SharedMem g_shm = {0};
-SubProc g_subproc = {0};
+SharedMem g_shm;
+SubProc g_subproc;
+unsigned char *vram;
 
 void event_callback(int type, float ts, int p1, int p2)
 {
@@ -72,10 +22,26 @@ void event_callback(int type, float ts, int p1, int p2)
 Texture g_tex = {0, 256,256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
 Shader *g_shader;
 
+//~ void termination_handler(int signum)
+//~ {
+	
+//~ }
 
+//~ int
+//~ main (void)
+//~ {
+  //~ …
+  //~ if (signal (SIGINT, termination_handler) == SIG_IGN)
+    //~ signal (SIGINT, SIG_IGN);
+  //~ if (signal (SIGHUP, termination_handler) == SIG_IGN)
+    //~ signal (SIGHUP, SIG_IGN);
+  //~ if (signal (SIGTERM, termination_handler) == SIG_IGN)
+    //~ signal (SIGTERM, SIG_IGN);
+  //~ …
+//~ }
 void game_init(void)
 {
-	tex_set(&g_tex, io.vram);
+	tex_set(&g_tex, vram);
 	
 	char *args[] = {"aPos", "uVram", "uSize", NULL};
 	g_shader = shader_new("\
@@ -136,59 +102,10 @@ void game_update(void)
 	
 }
 
-int child_status()
+void vram_init(void)
 {
-}
-
-void main_child(int argc, char *argv[])
-{
-	char *prog = argv[1];
-	int a;
-	for (a = 0; a < argc-1; ++a)
-		argv[a] = argv[a+1];
-	argv[a] = NULL;
-	argv[0] = alloca(10);
-	snprintf(argv[0], 10, "%x", g_shm.shmid);
-	execv(prog, argv);
-	ABORT(0, "The program '%s' could not be found", prog);
-}
-
-void vram_init()
-{
-	io.vram = g_shm.mem;
+	vram = g_shm.mem;
 	
-}
-
-void main_shutdown(void)
-{
-	
-}
-
-
-void main_parent()
-{
-	vram_init();
-	
-	IPC *ipc = (IPC*)(g_shm.mem + 256*256);
-	ipc_init(ipc, ipc+1);
-	
-	//~ win_init(event_callback);
-	//~ game_init();
-	while(!subproc_status(&g_subproc)) {
-		printf("MAIN\n");
-		sleep(1);
-	}
-	//~ int stat = 0;
-	//~ double prev_t = win_time();
-	//~ while (!(stat = child_status()) && !win_should_close()) {
-		//~ game_update();
-		//~ win_update();
-	//~ }
-	
-	//~ printf("Exiting\n");
-	//~ win_fini();
-	//~ waitpid(-1, NULL, 0);
-	ABORT(0, "Goodbye");
 }
 
 int main(int argc, char *argv[])
@@ -196,14 +113,35 @@ int main(int argc, char *argv[])
 	// Setup shared mem
 	if (!shm_init(&g_shm, 256*256 + sizeof(IPC)*2))
 		ABORT(1, "Couldn't created shared memory segment");
-	on_exit(shm_fini, &g_shm);
+	on_exit(shm_on_exit, &g_shm);
 	
+	char *prog = argv[1];
+	int a;
+	for (a = 0; a < argc-1; ++a)
+		argv[a] = argv[a+1];
+	argv[a] = NULL;
+	argv[0] = alloca(10);
+	snprintf(argv[0], 10, "%x", g_shm.shmid);
+
 	// Fork
-	if (subproc_init(&g_subproc) < 0)
+	if (subproc_init(&g_subproc, prog, argv) < 0)
 		ABORT(2, "Couldn't fork");
-	if (g_subproc.pid) {
-		on_exit(subproc_fini, &g_subproc);
-		main_parent();  // doesn't return
-	}
-	main_child(argc, argv); // doesn't return
+	on_exit(subproc_on_exit, &g_subproc);
+	
+	// Start initialization
+	vram_init();
+	
+	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
+	//~ ipc_init(ipc, ipc+1);
+	
+	if (!win_init(event_callback))
+		ABORT(3, "win_init failed");
+	on_exit(win_on_exit, 0);
+	
+	//~ while(!subproc_status(&g_subproc)) {
+		//~ printf("MAIN\n");
+		//~ sleep(1);
+	//~ }
+
+	ABORT(0, "Goodbye");
 }

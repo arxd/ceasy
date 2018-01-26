@@ -1,41 +1,50 @@
+#ifndef WINDOW_GLFW_C
+#define WINDOW_GLFW_C
+
+
+typedef void EventCallback(int type, float ts, int p1, int p2);
+
+int win_should_close();
+void win_size(int *w, int *h);
+void win_update();
+
+int win_init(EventCallback* callback);
+void win_fini();
+void win_on_exit(int status, void *arg);
+
+#if __INCLUDE_LEVEL__ == 0
+
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-//~ #include <string.h>
-//~ #include <stdarg.h>
+#include <string.h>
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
-//~ #include <unistd.h>
-//~ #include <sys/mman.h>
-//~ #include <sys/ipc.h>
-//~ #include <sys/shm.h>
-//~ #include <sys/stat.h> 
-//~ #include <signal.h>
-//~ #include <sys/wait.h>
 
-//~ #include "gfx.c"
-
-//~ #define BGW (1024)
-//~ #define BGH (576)
-
-
+#include "util.c"
 #include "window.h"
 
-static GLFWwindow *window = 0;
-static GLFWwindow * w_window = 0;
-static GLFWwindow * fs_window = 0;
+typedef struct s_Window Window;
+struct s_Window {
+	GLFWwindow *window;
+	GLFWwindow *w_window;
+	GLFWwindow *fs_window;
+	EventCallback *callback;
+	int should_close;
+};
 
-int g_win_width, g_win_height;
+Window gw;
 
 int win_should_close(void)
 {
-	return glfwWindowShouldClose(window);
+	return glfwWindowShouldClose(gw.window);
 }
 
 void win_size(int *w, int *h)
 {
-	*w = g_win_width;
-	*h = g_win_height;
+	glfwGetFramebufferSize(gw.window, w, h);
 }
 
 double win_time(void)
@@ -45,16 +54,8 @@ double win_time(void)
 
 void win_update(void)
 {
-	glfwSwapBuffers(window);
+	glfwSwapBuffers(gw.window);
 	glfwPollEvents();
-}
-
-static void win_death(const char *title, const char *err_str, int errid)
-{	
-	if (title)
-		printf("%s:%d: %s\n", title, errid, err_str);
-	win_fini();
-	exit(errid);
 }
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -71,58 +72,73 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 		}
 		glfwSetWindowSize(window, width, height);
 	} else {
-		g_win_width = width;
-		g_win_height = height;
 		glViewport(0, 0, width, height);
 	}
 }
 
 static void set_window(GLFWwindow *w)
 {
-	window = w;
-	glfwMakeContextCurrent(window);
+	gw.window = w;
+	glfwMakeContextCurrent(gw.window);
 	//~ init_gl();
 	//~ glfwSwapInterval(0);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetFramebufferSizeCallback(gw.window, framebuffer_size_callback);
 	//~ glfwSetKeyCallback(window, key_callback);
 	//~ glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, 1);
 	
 	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
-	framebuffer_size_callback(window, width, height);
+	glfwGetFramebufferSize(gw.window, &width, &height);
+	framebuffer_size_callback(gw.window, width, height);
 }
 
 
 static void error_callback(int error, const char* description)
 {
-	win_death("GLFW Error", description, error);
-}
-
-void win_init(EventCallback* callback)
-{
-	glfwSetErrorCallback(error_callback);
-	if (!glfwInit())
-		win_death("GLFW", "init", -1);
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	
-	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-	printf("MODE: %d,%d  %f %d\n", mode->width, mode->height, (double)mode->width/(double)mode->height, mode->refreshRate);
-	w_window = glfwCreateWindow(256, 144, "Glyphy Graphics", NULL, NULL);
-	if (!w_window)
-		win_death("GLFW", "window create", -1);
-	set_window(w_window);
-	printf("GL_VERSION  : %s\n", glGetString(GL_VERSION) );
-	printf("GL_RENDERER : %s\n", glGetString(GL_RENDERER) );
+	ABORT(100, "GLFW:%d: %s", error, description);
 }
 
 void win_fini(void)
 {
-	if (fs_window)
-		glfwDestroyWindow(fs_window);
-	if (w_window)
-		glfwDestroyWindow(w_window);
+	if (gw.fs_window) {
+		DEBUG("Destroy FS window");
+		glfwDestroyWindow(gw.fs_window);
+	}
+	if (gw.w_window) {
+		DEBUG("Destroy Window");
+		glfwDestroyWindow(gw.w_window);
+	}
+	DEBUG("GLFW Terminate");
 	glfwTerminate();
-	
+	memset(&gw, 0, sizeof(Window));
 }
+
+void win_on_exit(int status, void *arg)
+{
+	win_fini();
+}
+
+int win_init(EventCallback* callback)
+{
+	memset(&gw, 0, sizeof(Window));	
+	glfwSetErrorCallback(error_callback);
+	if (!glfwInit())
+		return 0;
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	
+	//~ const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+	//~ printf("MODE: %d,%d  %f %d\n", mode->width, mode->height, (double)mode->width/(double)mode->height, mode->refreshRate);
+	gw.w_window = glfwCreateWindow(256, 144, "Glyphy Graphics", NULL, NULL);
+	if (!gw.w_window) {
+		glfwTerminate();
+		return 0;
+	}
+	set_window(gw.w_window);
+	DEBUG("GL_VERSION  : %s", glGetString(GL_VERSION) );
+	DEBUG("GL_RENDERER : %s", glGetString(GL_RENDERER) );
+	return 1;
+}
+
+#endif
+#endif
