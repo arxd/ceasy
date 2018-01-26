@@ -8,6 +8,8 @@
 #include "glhelper.c"
 #include "subproc.c"
 #include "share.c"
+#include "layer_pass.c"
+#include "upscale_pass.c"
 
 SharedMem g_shm;
 SubProc g_subproc;
@@ -19,64 +21,39 @@ void event_callback(int type, float ts, int p1, int p2)
 	
 	
 }
-Texture g_vram_tex = {0, 256,256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
-Shader g_shader;
+//~ Shader g_shader;
+//~ Shader g_upscale_shader;
+
+FrameBuffer g_fb;
 
 void game_init(void)
 {
-	//~ tex_set(&g_vram_tex, vram);
+	// create the frame buffer
+	glActiveTexture(GL_TEXTURE0);
+	framebuffer_init(&g_fb, 256, 256);
+	on_exit(framebuffer_on_exit, &g_fb);
+	layerpass_init();
+	upscale_init();
 	
-	char *args[] = {"aPos", "uSize", NULL};
-	if (!shader_init(&g_shader, "\
-		#version 100\n\
-		attribute vec2 aPos; \n\
-		void main() \n\
-		{ \n\
-			gl_Position = vec4(aPos, 0.0, 1.0); \n\
-		}", "\
-		#version 100\n\
-		precision mediump float;\n\
-		//~ //uniform sampler2D uVram; \n\
-		uniform vec2 uSize;\n\
-		void main() { \n\
-			//~ //gl_FragColor = texture2D(uVram, vTex);\n\
-			//~ //fragColor = (gl_FragCoord.x<25.0) ? vec4(uSize, 0.0, 1.0) : vec4(uSize, 1.0, 1.0);\n\
-			int r = int(gl_FragCoord.y *144.0 / uSize.y);\n\
-			int c = int(gl_FragCoord.x * 256.0 / uSize.x);\n\
-			gl_FragColor = vec4((r==4)?1.0:0.0, (c==2)?1.0:0.0, 0.5, 1.0);\n\
-		}", args))
-		ABORT(1, "Couldn't create shader");
-	on_exit(shader_on_exit, &g_shader);
-	
-	// background vertexes
-	GLuint rect;
-	glGenBuffers(1, &rect);
-	glBindBuffer(GL_ARRAY_BUFFER, rect);
-	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_shader.args[0]);
-
-	// uniform vram
-	//glUniform1i(g_shader->args[1], 0);
-
-	glUseProgram(g_shader.id);
-	DEBUG("Game Init Finished");
-
 }
+
 
 void game_update(void)
 {
-	//~ tex_set(&g_tex, io.vram);
-	clear(0.0, 0.1, 0.5);
-	int w,h;
-	win_size(&w, &h);
-	glUniform2f(g_shader.args[1],w, h);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	int err;
-	if ( (err=glGetError()) )
-		ABORT(3, "Error %d", err);
+
+	int r,c;
+	win_size(&r, &c);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.fbid);
+	layerpass_begin();
+	layerpass_draw();
 	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, g_fb.txid);
+	upscale_begin(r,c);
+	upscale_draw();
+	gl_error_check();
 	
 }
 
