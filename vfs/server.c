@@ -10,10 +10,10 @@
 #include "share.c"
 #include "layer_pass.c"
 #include "upscale_pass.c"
+#include "iomem.h"
 
 SharedMem g_shm;
 SubProc g_subproc;
-unsigned char *vram;
 
 void event_callback(int type, float ts, int p1, int p2)
 {
@@ -40,7 +40,6 @@ void game_init(void)
 
 void game_update(void)
 {
-
 	int r,c;
 	win_size(&r, &c);
 
@@ -57,19 +56,20 @@ void game_update(void)
 	
 }
 
-void vram_init(void)
-{
-	vram = g_shm.mem;
-	
-}
+uint32_t default_palette[256] = { // ABGR
+	0x00000000, 0x00111111, 0x00222222, 0x00333333, 0x00444444, 0x00555555, 0x00666666, 0x00777777, 0x00888888, 0x00999999, 0x00aaaaaa, 0x00bbbbbb, 0x00cccccc, 0x00dddddd, 0x00eeeeee, 0x00ffffff,
+	0x0};
 
 int main(int argc, char *argv[])
 {
 	// Setup shared mem
-	if (!shm_init(&g_shm, 256*256 + sizeof(IPC)*2))
+	if (!shm_init(&g_shm, sizeof(IOMem)))
 		ABORT(1, "Couldn't created shared memory segment");
 	on_exit(shm_on_exit, &g_shm);
-	
+	iomem_init(g_shm.mem);
+	memset(io, 0, sizeof(IOMem));
+	memcpy((void*)palette, (void*)default_palette, 256);
+
 	char *prog = argv[1];
 	int a;
 	for (a = 0; a < argc-1; ++a)
@@ -87,11 +87,10 @@ int main(int argc, char *argv[])
 	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
 	//~ ipc_init(ipc, ipc+1);
 	
-	if (!win_init(event_callback))
+	if (!win_init(256,144, event_callback))
 		ABORT(3, "win_init failed");
 	on_exit(win_on_exit, 0);
 	
-	vram_init();
 	game_init();
 	
 	while(!(subproc_status(&g_subproc) || win_should_close())) {

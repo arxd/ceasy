@@ -10,6 +10,7 @@ void layerpass_draw(void);
 
 #include "glhelper.c"
 #include "util.c"
+#include "shaders.h"
 
 FrameBuffer g_fb;
 Shader g_layer_shader;
@@ -22,33 +23,7 @@ void layerpass_init(void)
 	
 	// create the shader
 	char *args[] = {"aPos", "uFramebuffer", NULL};
-	if (!shader_init(&g_layer_shader, "\
-		#version 100 \n\
-		attribute vec2 aPos; \n\
-		void main() \n\
-		{ \n\
-			gl_Position = vec4(aPos, 0.0, 1.0); \n\
-		}", "\
-		#version 100 \n\
-		precision mediump float;\n\
-		uniform sampler2D uFramebuffer; \n\
-		\n\
-		int lookup(int r, int c) {\n\
-			vec4 pix = texture2D(uFramebuffer, vec2((float(c)+0.5)/256.0, (float(r)+0.5)/256.0));//);\n\
-			return int(pix.a*255.99);\n\
-		}\n\
-		\n\
-		void main() { \n\
-			int r = int(144.0-gl_FragCoord.y);\n\
-			int c = int(gl_FragCoord.x);\n\
-			int index = lookup(r, c);\n\
-			int red = lookup(144, index);\n\
-			int green = lookup(145, index);\n\
-			int blue = lookup(146, index);\n\
-			int alpha = lookup(147, index);\n\
-			vec4 rgba = vec4(float(red)/255.0, float(green)/255.0, float(blue)/255.0, float(alpha)/255.0);\n\
-			gl_FragColor = rgba;\n\
-		}", args))
+	if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_VRAM, args))
 		ABORT(1, "Couldn't create fb shader");
 	on_exit(shader_on_exit, &g_layer_shader);
 	

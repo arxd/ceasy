@@ -10,6 +10,7 @@ void upscale_draw(void);
 
 #include "glhelper.c"
 #include "util.c"
+#include "shaders.h"
 
 //~ FrameBuffer g_fb;
 Shader g_upscale_shader;
@@ -22,23 +23,7 @@ void upscale_init(void)
 	
 	// create the shader
 	char *args[] = {"aPos", "uSize", "uFramebuffer", NULL};
-	if (!shader_init(&g_upscale_shader, "\
-		#version 100 \n\
-		attribute vec2 aPos; \n\
-		void main() \n\
-		{ \n\
-			gl_Position = vec4(aPos, 0.0, 1.0); \n\
-		}", "\
-		#version 100 \n\
-		precision mediump float;\n\
-		uniform sampler2D uFramebuffer; \n\
-		uniform vec2 uSize;\n\
-		void main() { \n\
-			int c = int(gl_FragCoord.x *256.0 / uSize.x);\n\
-			int r = int(gl_FragCoord.y * 144.0/uSize.y);\n\
-			vec4 s =  texture2D(uFramebuffer, vec2((float(c)+0.5)/256.0, (float(r)+0.5)/256.0));\n\
-			gl_FragColor = s;\n\
-		}", args))
+	if (!shader_init(&g_upscale_shader,V_PASSTHROUGH, F_NEAREST, args))
 		ABORT(1, "Couldn't create fb shader");
 	on_exit(shader_on_exit, &g_upscale_shader);
 	

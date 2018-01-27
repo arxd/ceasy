@@ -8,7 +8,7 @@ int win_should_close();
 void win_size(int *w, int *h);
 void win_update();
 
-int win_init(EventCallback* callback);
+int win_init(int w, int h, EventCallback* callback);
 void win_fini();
 void win_on_exit(int status, void *arg);
 
@@ -57,6 +57,7 @@ void win_update(void)
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+	return;
 	float monitor_aspect = (16.0/9.0);
 	if (fabs((double)width /height - monitor_aspect) > 0.01) {
 		if ((double) width/height > monitor_aspect)
@@ -114,7 +115,7 @@ void win_on_exit(int status, void *arg)
 	win_fini();
 }
 
-int win_init(EventCallback* callback)
+int win_init(int w, int h, EventCallback* callback)
 {
 	memset(&gw, 0, sizeof(Window));	
 	glfwSetErrorCallback(error_callback);
@@ -126,7 +127,7 @@ int win_init(EventCallback* callback)
 	
 	//~ const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 	//~ printf("MODE: %d,%d  %f %d\n", mode->width, mode->height, (double)mode->width/(double)mode->height, mode->refreshRate);
-	gw.w_window = glfwCreateWindow(256, 144, "Glyphy Graphics", NULL, NULL);
+	gw.w_window = glfwCreateWindow(w, h, "Glyphy Graphics", NULL, NULL);
 	if (!gw.w_window) {
 		glfwTerminate();
 		return 0;
