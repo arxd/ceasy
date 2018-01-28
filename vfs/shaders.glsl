@@ -52,4 +52,30 @@ void main() {
 	gl_FragColor = s;
 }
 
+////F_TILE
+#version 100
+precision mediump float;
+uniform sampler2D uFramebuffer;
+uniform vec2 uSize;
+uniform ivec2 uOffset;
+uniform ivec2 uFlip;
+uniform int uAddress;
+
+vec2 get_mapel(vec2 tile)
+{
+	
+	
+	return vec2(0,0);
+}
+
+
+void main() {
+	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y));
+	vec2 tile = mod(floor(px/8.0), 1.0);
+	
+	gl_FragColor = vec4(1.0, 0.0, 0.0, 0.0);
+}
+
 ////
+
+

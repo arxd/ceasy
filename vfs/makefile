@@ -2,7 +2,7 @@
 CFLAGS=-g -DEBUG
 $(shell mkdir -p build)
 
-build/client.o: client.c share.c util.c iomem.h
+build/client.o: client.c client.h
 	clang -c -o $@ $< $(CFLAGS)
 	
 build/share.o: share.c util.c
@@ -32,12 +32,17 @@ build/server.o: server.c subproc.c share.c window_glfw.c glhelper.c util.c upsca
 shaders.h: ccglsl shaders.glsl
 	./ccglsl shaders.glsl shaders.h
 
+client.h: client_in.h iomem.h
+	cat iomem.h > client.h
+	cat client_in.h >> client.h
+
+
 build/shader_compiler.o: shader_compiler.c util.c
 	clang -c -o $@ $< $(CFLAGS)
 
 all: client server ccglsl;
 
-client: build/client.o build/share.o build/util.o
+client: build/client.o
 	clang -o $@ $^ -lm
 	
 server: build/server.o build/subproc.o build/window_glfw.o build/upscale_pass.o build/share.o build/util.o build/glhelper.o build/layer_pass.o
@@ -55,4 +60,5 @@ clean:
 	rm -f ccglsl
 	rm -f client
 	rm -f shaders.h
+	rm -f client.h
 	

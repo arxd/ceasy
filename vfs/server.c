@@ -44,9 +44,10 @@ void game_update(void)
 	win_size(&r, &c);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.fbid);
-	layerpass_begin();
-	layerpass_draw();
-	
+	//~ layerpass_begin();
+	//~ layerpass_draw();
+	tile_render();
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_fb.txid);

@@ -5,6 +5,7 @@ void layerpass_begin(void);
 void layerpass_init(void);
 void layerpass_draw(void);
 
+void tile_render(void);
 
 #if __INCLUDE_LEVEL__ == 0
 
@@ -14,6 +15,8 @@ void layerpass_draw(void);
 
 FrameBuffer g_fb;
 Shader g_layer_shader;
+Shader g_tile_shader;
+
 Texture g_vram_tex = {0, 256,256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
 
 extern unsigned char *vram;
@@ -22,10 +25,16 @@ void layerpass_init(void)
 {
 	
 	// create the shader
-	char *args[] = {"aPos", "uFramebuffer", NULL};
-	if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_VRAM, args))
+	char *vram_args[] = {"aPos", "uFramebuffer", NULL};
+	if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_VRAM, vram_args))
 		ABORT(1, "Couldn't create fb shader");
 	on_exit(shader_on_exit, &g_layer_shader);
+	
+	char *tile_args[] = {"aPos", "uAddress", "uSize", "uOffset", "uFlip", "uFramebuffer", NULL};
+	if (!shader_init(&g_tile_shader, V_PASSTHROUGH, F_TILE, tile_args))
+		ABORT(1, "Couldn't create tile shader");
+	on_exit(shader_on_exit, &g_tile_shader);
+	
 	
 	GLuint vb, tvb;
 	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
@@ -48,7 +57,32 @@ void layerpass_init(void)
 	DEBUG("SET UP TEXTURE %d", vram[321]);
 	on_exit(tex_on_exit, &g_vram_tex);
 	
+	
+	
+	
+	
 }
+
+void tile_render(void)
+{
+	glUseProgram(g_tile_shader.id);
+	glActiveTexture(GL_TEXTURE0);
+	//~ glBindTexture(GL_TEXTURE_2D, g_vram_tex.id);
+	tex_set(&g_vram_tex, vram);
+	//~ glBindTexture(GL_TEXTURE_2D, g_vram_tex.id);
+	
+	glUniform1i(g_tile_shader.args[1], 0);//address
+	glUniform2i(g_tile_shader.args[2], 1, 1);//size
+	glUniform2i(g_tile_shader.args[3], 0, 0);//offset
+	glUniform2i(g_tile_shader.args[4], 0, 0);//flip
+	glUniform1i(g_tile_shader.args[5], 0); // framebuffer
+	glViewport(0, 0, 256, 144);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	gl_error_check();
+}
+
+
+
 
 void layerpass_begin(void)
 {

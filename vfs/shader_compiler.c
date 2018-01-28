@@ -13,18 +13,17 @@ int compile_shader(const char **src, int nlines, GLenum type, int row_off)
 {
 	GLuint shader;
 	// Compile Vertex Shader
-//	GLenum shader_type = (type=='F')?GL_FRAGMENT_SHADER: GL_VERTEX_SHADER;
 	shader = glCreateShader(type);
 	if (!shader)
 		ABORT(9, "Couldn't create shader");
 	glShaderSource(shader, nlines, src, NULL);
 	glCompileShader(shader);	
-
 	GLint status;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	if (!status) {
 		GLint len = 0;
 		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
+		printf("FAIL\n");
 		if ( len > 0 ) {
 			char* log = alloca(sizeof(char) * len);
 			glGetShaderInfoLog(shader, len, NULL, log);
@@ -71,7 +70,7 @@ int compile_shader(const char **src, int nlines, GLenum type, int row_off)
 		}
 		return 0;
 	}
-	DEBUG("Compiled successfully");
+	printf("Done\n");
 	return 1;
 }
 
@@ -103,7 +102,9 @@ int main(int argc, char*argv[])
 	//~ printf("MODE: %d,%d  %f %d\n", mode->width, mode->height, (double)mode->width/(double)mode->height, mode->refreshRate);
 	GLFWwindow *window = glfwCreateWindow(256, 144, "Glyphy Graphics", NULL, NULL);
 	glfwMakeContextCurrent(window);
-
+	
+	printf("\t%s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	
 	int line_number = 0;
 	char *src[4096] = {0};
 	int src_lines=0;
@@ -112,7 +113,7 @@ int main(int argc, char*argv[])
 	while (++line_number, (read = getline(&line, &len, fp)) != -1) {
 		if (read > 4 && line[0] == '/' && line[1] =='/' && line[2] == '/' && line[3]=='/') {
 			if (name) {
-				DEBUG("Compile <%s>  %d", name, line_offset);
+				printf("\tCompile <%s>  %d", name, line_offset);
 				if (compile_shader((const char**)src, src_lines, (name[0]=='F')?GL_FRAGMENT_SHADER:GL_VERTEX_SHADER, line_offset)) {
 					fprintf(fout, "#define %s \"\\n\\\n", name);
 					for (int i=0; i < src_lines; ++i) {
