@@ -52,90 +52,123 @@ void main() {
 	gl_FragColor = s;
 }
 
-////F_TILE
+
+
+////F_LAYER
 #version 100
 precision highp float;
 uniform sampler2D uFramebuffer;
-uniform vec2 uSize;
-uniform vec2 uOffset;
-uniform float uAddress;
+uniform vec2 uOffset; // offset of the map on the screen
+uniform float uMap; // start of map
+uniform vec2 uMapSize; //width/height of map
+uniform float uTiles; // start of the tiles
+uniform vec2 uTileSize; // width/height of a tile
+uniform float uTileRowSize; 
+uniform float uPalette; // start of the palette entries
+uniform int uTileBits;
 uniform bvec2 uClip;
-uniform bvec2 uClamp;
 uniform bvec2 uFlip;
+uniform bvec2 uClamp;
 
-vec4 palette_lookup(float index)
+float mem(float idx)
 {
-	vec2 xy = (vec2(mod(index,64.0)*4.0, floor(index/64.0)+144.0)+0.5)/256.0;
-	vec4 rgba;
-	rgba.r = texture2D(uFramebuffer, xy).a;
-	xy.x += 1.0/256.0;
-	rgba.g = texture2D(uFramebuffer, xy).a;
-	xy.x += 1.0/256.0;
-	rgba.b = texture2D(uFramebuffer, xy).a;
-	xy.x += 1.0/256.0;
-	rgba.a = texture2D(uFramebuffer, xy).a;
-	return rgba;
+	return texture2D(uFramebuffer,  (vec2(mod(idx, 256.0), floor(idx/256.0))+0.5) / 256.0).a;
 }
 
-float get_data(float index)
+float memi(float idx)
 {
-	return floor(texture2D(uFramebuffer,  (vec2(mod(index, 256.0), floor(index/256.0))+0.5) / 256.0).a*255.99);
+	return floor(mem(idx)*(256.0 - 0.5));
 }
 
-vec2 get_mapel(vec2 tile)
+vec4 palette(float idx)
 {
-	float address = (tile.y*uSize.x + tile.x)*2.0 + uAddress;
-	return vec2(get_data(address), get_data(address+1.0));
+	return vec4(mem(idx), mem(idx+1.0), mem(idx+2.0), mem(idx+3.0));
 }
 
-float get_sprite_texel(float sprite_id, vec2 px)
+float tile_texel_4bit(float idx, vec2 subpix)
 {
-	float byte = get_data(148.0*256.0 + 32.0*sprite_id + px.y*4.0 + floor(px.x/2.0));
-	if (px.x == 0.0 || px.x == 2.0 || px.x == 4.0 || px.x == 6.0)
-		return floor(byte / 16.0);
-	return mod(byte,16.0);
+	float byte = memi(uTiles + (idx*uTileSize.y + subpix.y)*uTileRowSize + floor(subpix.x/2.0));
+	if (mod(subpix.x, 2.0) == 0.0)
+		return floor(byte/16.0);
+	return mod(byte, 16.0);
 }
 
-void main() {
+float tile_texel_1bit(float idx, vec2 subpix)
+{
+	float byte = memi(uTiles + (idx*uTileSize.y + subpix.y)*uTileRowSize + floor(subpix.x/8.0));
+	float bit = mod(subpix.x, 8.0);
+	if (bit == 0.0)
+		return floor(byte / 128.0);
+	if (bit == 1.0)
+		return mod(floor(byte / 64.0), 2.0);
+	if (bit == 2.0)
+		return mod(floor(byte / 32.0), 2.0);
+	if (bit == 3.0)
+		return mod(floor(byte / 16.0), 2.0);
+	if (bit == 4.0)
+		return mod(floor(byte / 8.0), 2.0);
+	if (bit == 5.0)
+		return mod(floor(byte / 4.0), 2.0);
+	if (bit == 6.0)
+		return mod(floor(byte / 2.0), 2.0);
+	return mod(byte, 2.0);
+}
+
+float tile_texel_2bit(float idx, vec2 subpix)
+{
+	float byte = memi(uTiles + (idx*uTileSize.y + subpix.y)*uTileRowSize + floor(subpix.x/4.0));
+	float bit = mod(subpix.x, 4.0);
+	if (bit == 0.0)
+		return floor(byte / 64.0);
+	if (bit == 1.0)
+		return mod(floor(byte / 16.0), 4.0);
+	if (bit == 2.0)
+		return mod(floor(byte / 4.0), 4.0);
+	return mod(byte, 4.0);
+}
+
+
+void main()
+{
 	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y)) + uOffset;
-	vec2 subpx= mod(px, 8.0);
-	vec2 tile = floor(px/8.0);
-	if (uClip.x && (tile.x >= uSize.x || tile.x < 0.0))
-		discard;
-	if (uClip.y && (tile.y >= uSize.y || tile.y < 0.0))
-		discard;
-	
+	vec2 tile = floor(px / uTileSize);
+	vec2 subpx = mod(px, uTileSize);
 	bvec2 flip = bvec2(false, false);
+	
+	if (uClip.x && (tile.x >= uMapSize.x || tile.x < 0.0))
+		discard;
+	if (uClip.y && (tile.y >= uMapSize.y || tile.y < 0.0))
+		discard;
 	
 	if (uClamp.x) {
 		if (uFlip.x)
 			flip.x = bool(mod(tile.x, 2.0));
-		tile.x = (tile.x < 0.0) ? 0.0 : ((tile.x >= uSize.x)? uSize.x-1.0 : tile.x);
+		tile.x = (tile.x < 0.0) ? 0.0 : ((tile.x >= uMapSize.x)? uMapSize.x-1.0 : tile.x);
 	} else {
-		tile.x = mod(tile.x, uSize.x);
+		tile.x = mod(tile.x, uMapSize.x);
 	}
 		
 	if (uClamp.y) {
 		if (uFlip.y)
 			flip.y = bool(mod(tile.y, 2.0));
-		tile.y = (tile.y < 0.0) ? 0.0 : ((tile.y >= uSize.y)? uSize.y-1.0 : tile.y);
+		tile.y = (tile.y < 0.0) ? 0.0 : ((tile.y >= uMapSize.y)? uMapSize.y-1.0 : tile.y);
 		
 	} else {
-		tile.y = mod(tile.y, uSize.y);
+		tile.y = mod(tile.y, uMapSize.y);
 	}
 	
-	vec2 mapel = get_mapel(tile);
-	if (mapel.y >= 128.0) 
-		flip.x = !flip.x;
-	if ( mod(mapel.y, 128.0) >= 64.0) 
-		flip.y = !flip.y;
-	
-	if (flip.x)
-		subpx.x = 7.0-subpx.x;
-	if (flip.y)
-		subpx.y = 7.0-subpx.y;
-	
-	gl_FragColor = palette_lookup(get_sprite_texel(mapel.x, subpx));//vec4(clri/4.0, 0.0, 0.0 , 0.0);
+	float clridx = 8.0;
+	if (uTileSize.x*uTileSize.y == 1.0) {
+		clridx = uMap + uMapSize.x*tile.y + tile.x;
+	} else {
+		if (uTileBits == 4)
+			clridx = tile_texel_4bit(memi(uMap + uMapSize.x*tile.y + tile.x), subpx);
+		else if (uTileBits == 1)
+			clridx = tile_texel_1bit(memi(uMap + uMapSize.x*tile.y + tile.x), subpx);
+		else if (uTileBits == 2)
+			clridx = tile_texel_2bit(memi(uMap + uMapSize.x*tile.y + tile.x), subpx);
+	}
+	gl_FragColor = palette(uPalette + 4.0*memi(clridx));
 }
 
 ////

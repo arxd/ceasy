@@ -6,23 +6,24 @@
 #include <sys/shm.h>
 
 IOMem *io;
-Voice *voices;
-Object *objects;
+//~ Voice *voices;
+//~ Object *objects;
 uint8_t *vram;
-Color *palette;
-Sprite *sprites;
-Mapel *maps;
+//~ Color *palette;
+//~ Sprite *sprites;
+//~ Mapel *maps;
+Layer *layers;
 
 void iomem_init(void *mem)
 {
 	io = (IOMem*)mem;
-	voices = io->voices;
-	objects = io->objects;
+	//~ voices = io->voices;
+	//~ objects = io->objects;
 	vram = io->vram;
-	palette = io->palette;
-	sprites = io->sprites;
-	maps = io->maps;
-	
+	//~ palette = io->palette;
+	//~ sprites = io->sprites;
+	//~ maps = io->maps;
+	layers = io->layers;
 }
 
 void cpu_init(const char *shmid_str)
@@ -44,11 +45,12 @@ void cpu_init(const char *shmid_str)
 	//~ ipc_init(ipc+1, ipc);
 }
 
-void set_palette(uint8_t i, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void set_palette(uint16_t idx, uint32_t rgba)
 {
-	palette[i].r = r;
-	palette[i].g = g;
-	palette[i].b = b;
-	palette[i].a = a;
-	
+	vram[idx] = (rgba>>24)&0xff;
+	vram[idx+1] = (rgba>>16)&0xff;
+	vram[idx+2] = (rgba>>8)&0xff;
+	vram[idx+3] = (rgba>>0)&0xff;
 }
+
+

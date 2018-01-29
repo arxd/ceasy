@@ -37,6 +37,26 @@ struct s_Color {
 	uint8_t r,g,b,a;
 };
 
+#define BDR_CLIP (0)
+#define BDR_CLAMP (1)
+#define BDR_REPEAT (2)
+#define BDR_FLIP (3)
+
+typedef struct s_Layer Layer;
+struct s_Layer {
+	uint16_t map;		///< address of the layer map
+	uint16_t mapW;	///< Width of the layer map (in tiles)
+	uint16_t mapH;	///< Height
+	int16_t mapX;		///< x offset of the layer map (in pixles)
+	int16_t mapY;		///< y offset
+	uint16_t tiles;		///< Address of the tile data
+	uint8_t tileW;		///< Width of a tile (in pixels).
+	uint8_t tileH;		///< Height
+	uint16_t palette;	///< Address of the palette data
+	uint8_t tileBits;		///< Bits per tile texel (1, 2, 4, 8)
+	uint8_t border;		///< How tiles outside the map are handled.  x(high nibble) y(low nibble)
+};
+
 typedef struct s_Object Object;
 struct s_Object {
 	uint16_t address;
@@ -45,10 +65,6 @@ struct s_Object {
 	int16_t xoff;
 	int16_t yoff;
 	uint8_t alpha;
-#define OBJ_CLIP (0)
-#define OBJ_CLAMP (1)
-#define OBJ_REPEAT (2)
-#define OBJ_FLIP (3)
 #ifdef LITTLE_ENDIAN
 	uint8_t xBounds:2;
 	uint8_t yBounds:2;
@@ -85,12 +101,12 @@ typedef struct s_IOMem IOMem;
 struct s_IOMem {
 	Input input;
 	Voice voices[32];
-	Object objects[256];
+	Layer layers[256];
 	// fowllowing data is 256*256 to fit in a texture
-	uint8_t vram[256*144];	// 144 rows
-	Color palette[256];		// 4 rows
-	Sprite sprites[256];		// 32 rows
-	Mapel maps[9728];		// 76 rows
+	uint8_t vram[256*256];	// 144 rows
+	//~ Color palette[256];		// 4 rows
+	//~ Sprite sprites[256];		// 32 rows
+	//~ Mapel maps[9728];		// 76 rows
 };
 
 
