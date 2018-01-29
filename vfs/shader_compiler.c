@@ -27,7 +27,6 @@ int compile_shader(const char **src, int nlines, GLenum type, int row_off)
 		if ( len > 0 ) {
 			char* log = alloca(sizeof(char) * len);
 			glGetShaderInfoLog(shader, len, NULL, log);
-			printf("~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 			char *lines[1024];
 			int nlines = 0;
 			int i=0;
@@ -44,7 +43,6 @@ int compile_shader(const char **src, int nlines, GLenum type, int row_off)
 			int prev_row = -1;
 			int prev_col = 0;
 			for (i=0; i < nlines; ++i) {
-				//printf("ERROR: %s\n-----------\n", lines[i]);
 				int j=0;
 				while(lines[i][j++] != ':');
 				while(lines[i][j++] != ':');
@@ -65,8 +63,6 @@ int compile_shader(const char **src, int nlines, GLenum type, int row_off)
 			for (int q=0; q < prev_col-1; ++q)
 				printf("%c", (src[prev_row-1][q] == '\t')?'\t':' ');
 			printf("^\n");
-			
-			printf("************\n");
 		}
 		return 0;
 	}
@@ -103,7 +99,14 @@ int main(int argc, char*argv[])
 	GLFWwindow *window = glfwCreateWindow(256, 144, "Glyphy Graphics", NULL, NULL);
 	glfwMakeContextCurrent(window);
 	
-	printf("\t%s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	printf("\t%s\n\tprecision: ", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	int range[2], precision;
+	glGetShaderPrecisionFormat(GL_FRAGMENT_SHADER, GL_LOW_FLOAT, range, &precision);
+	printf("%d, ",precision);	
+	glGetShaderPrecisionFormat(GL_FRAGMENT_SHADER, GL_MEDIUM_FLOAT, range, &precision);
+	printf("%d, ",precision); 
+	glGetShaderPrecisionFormat(GL_FRAGMENT_SHADER, GL_HIGH_FLOAT, range, &precision);
+	printf("%d\n",precision); 
 	
 	int line_number = 0;
 	char *src[4096] = {0};
@@ -113,7 +116,7 @@ int main(int argc, char*argv[])
 	while (++line_number, (read = getline(&line, &len, fp)) != -1) {
 		if (read > 4 && line[0] == '/' && line[1] =='/' && line[2] == '/' && line[3]=='/') {
 			if (name) {
-				printf("\tCompile <%s>  %d", name, line_offset);
+				printf("\tCompile <%s> ", name);
 				if (compile_shader((const char**)src, src_lines, (name[0]=='F')?GL_FRAGMENT_SHADER:GL_VERTEX_SHADER, line_offset)) {
 					fprintf(fout, "#define %s \"\\n\\\n", name);
 					for (int i=0; i < src_lines; ++i) {
@@ -121,6 +124,8 @@ int main(int argc, char*argv[])
 						fprintf(fout, "%s\\n\\\n", src[i]);
 					}
 					fprintf(fout, "\"\n\n");
+				} else {
+					exit(-1);
 				}
 				
 			}

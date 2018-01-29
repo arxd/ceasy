@@ -14,6 +14,13 @@
 
 SharedMem g_shm;
 SubProc g_subproc;
+IOMem *io;
+Voice *voices;
+Object *objects;
+uint8_t *vram;
+Color *palette;
+Sprite *sprites;
+Mapel *maps;
 
 void event_callback(int type, float ts, int p1, int p2)
 {
@@ -46,8 +53,12 @@ void game_update(void)
 	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.fbid);
 	//~ layerpass_begin();
 	//~ layerpass_draw();
-	tile_render();
-
+	object_pre_render();
+	object_render(objects+1);
+	
+	
+	
+	// upscale it
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_fb.txid);
@@ -60,6 +71,18 @@ void game_update(void)
 uint32_t default_palette[256] = { // ABGR
 	0x00000000, 0x00111111, 0x00222222, 0x00333333, 0x00444444, 0x00555555, 0x00666666, 0x00777777, 0x00888888, 0x00999999, 0x00aaaaaa, 0x00bbbbbb, 0x00cccccc, 0x00dddddd, 0x00eeeeee, 0x00ffffff,
 	0x0};
+
+void iomem_init(void *mem)
+{
+	io = (IOMem*)mem;
+	voices = io->voices;
+	objects = io->objects;
+	vram = io->vram;
+	palette = io->palette;
+	sprites = io->sprites;
+	maps = io->maps;
+	
+}
 
 int main(int argc, char *argv[])
 {

@@ -5,6 +5,26 @@
 #include <stdlib.h>
 #include <sys/shm.h>
 
+IOMem *io;
+Voice *voices;
+Object *objects;
+uint8_t *vram;
+Color *palette;
+Sprite *sprites;
+Mapel *maps;
+
+void iomem_init(void *mem)
+{
+	io = (IOMem*)mem;
+	voices = io->voices;
+	objects = io->objects;
+	vram = io->vram;
+	palette = io->palette;
+	sprites = io->sprites;
+	maps = io->maps;
+	
+}
+
 void cpu_init(const char *shmid_str)
 {
 	char * endptr;

@@ -45,7 +45,19 @@ struct s_Object {
 	int16_t xoff;
 	int16_t yoff;
 	uint8_t alpha;
-	uint8_t flags;
+#define OBJ_CLIP (0)
+#define OBJ_CLAMP (1)
+#define OBJ_REPEAT (2)
+#define OBJ_FLIP (3)
+#ifdef LITTLE_ENDIAN
+	uint8_t xBounds:2;
+	uint8_t yBounds:2;
+	uint8_t flags:4;
+#else
+	uint8_t flags:4;
+	uint8_t yBounds:2;
+	uint8_t xBounds:2;
+#endif
 };
 
 typedef struct s_Sprite Sprite;
@@ -56,10 +68,17 @@ struct s_Sprite {
 typedef struct s_Mapel Mapel;
 struct s_Mapel {
 	uint8_t sprite;
+#ifdef LITTLE_ENDIAN
 	uint8_t flipx:1;
 	uint8_t flipy:1;
 	uint8_t alpha :2;
 	uint8_t color:4;
+#else
+	uint8_t color:4;
+	uint8_t alpha :2;
+	uint8_t flipy:1;
+	uint8_t flipx:1;
+#endif	
 };
 
 typedef struct s_IOMem IOMem;
@@ -68,30 +87,11 @@ struct s_IOMem {
 	Voice voices[32];
 	Object objects[256];
 	// fowllowing data is 256*256 to fit in a texture
-	uint8_t vram[256*144];
-	Color palette[256];
-	Sprite sprites[256];
-	Mapel maps[9728];
+	uint8_t vram[256*144];	// 144 rows
+	Color palette[256];		// 4 rows
+	Sprite sprites[256];		// 32 rows
+	Mapel maps[9728];		// 76 rows
 };
 
-IOMem *io;
-Voice *voices;
-Object *objects;
-uint8_t *vram;
-Color *palette;
-Sprite *sprites;
-Mapel *maps;
-
-void iomem_init(void *mem)
-{
-	io = (IOMem*)mem;
-	voices = io->voices;
-	objects = io->objects;
-	vram = io->vram;
-	palette = io->palette;
-	sprites = io->sprites;
-	maps = io->maps;
-	
-}
 
 #endif
