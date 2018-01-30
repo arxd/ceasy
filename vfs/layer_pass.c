@@ -27,7 +27,7 @@ void layerpass_init(void)
 		"aPos","uFramebuffer", "uMap", "uMapSize", 
 		"uOffset", "uTiles", "uTileSize", "uTileRowSize", 
 		"uTileBits", "uPalette", "uClip", "uClamp", 
-		"uFlip", NULL};
+		"uFlip", "uReverse", "uAux", NULL};
 	if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_LAYER, layer_args))
 		ABORT(1, "Couldn't create layer shader");
 	on_exit(shader_on_exit, &g_layer_shader);
@@ -44,7 +44,6 @@ void layerpass_init(void)
 	glActiveTexture(GL_TEXTURE0);
 	tex_set(&g_vram_tex, vram);
 	on_exit(tex_on_exit, &g_vram_tex);
-		
 }
 
 void layer_pre_render(void)
@@ -68,9 +67,11 @@ void layer_render(Layer *layer)
 	glUniform1f(g_layer_shader.args[7], layer->tiles.row_bytes);//uTileRowSize
 	glUniform1i(g_layer_shader.args[8], layer->tiles.bits);//uTileBits
 	glUniform1f(g_layer_shader.args[9], layer->palette);//uPalette	
-	glUniform2i(g_layer_shader.args[10],  1,1);// ((layer->border>>4)&0xf) == BDR_CLIP, ((layer->border)&0xf)  == BDR_CLIP); // uClip
-	glUniform2i(g_layer_shader.args[11], 1,1);//(layer->border>>4)&0x1, layer->border&1); // uClamp
-	glUniform2i(g_layer_shader.args[12], 1,1);//((layer->border>>4)&0xf)  == BDR_FLIP, ((layer->border)&0xf)  == BDR_FLIP); // flip
+	glUniform2i(g_layer_shader.args[10], ((layer->border>>4)&0x7) == BDR_CLIP, ((layer->border)&0x7)  == BDR_CLIP); // uClip
+	glUniform2i(g_layer_shader.args[11], (layer->border>>4)&0x1, layer->border&1); // uClamp
+	glUniform2i(g_layer_shader.args[12], ((layer->border>>4)&0x7)  == BDR_FLIP, ((layer->border)&0x7)  == BDR_FLIP); // uFlip
+	glUniform2i(g_layer_shader.args[13], !!(layer->flags&LAYER_FLIPX),!!(layer->flags)&LAYER_FLIPY); // uReverse
+	glUniform1f(g_layer_shader.args[14], (layer->flags&LAYER_AUX)? layer->map.aux: -1.0); // uReverse
 	glViewport(0, 0, 256, 144);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	gl_error_check();

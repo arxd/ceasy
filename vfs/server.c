@@ -115,7 +115,14 @@ int main(int argc, char *argv[])
 	
 	game_init();
 	
-	while(!(subproc_status(&g_subproc) || win_should_close())) {
+	while(!(subproc_status(&g_subproc))) {
+		if (win_should_close())
+			io->input.status |= STATUS_CLOSE;
+		int x, y;
+		win_hover(&x, &y);
+		io->input.hoverX = x;
+		io->input.hoverY = y;
+
 		game_update();
 		win_update();
 		subproc_signal(&g_subproc);

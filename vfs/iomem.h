@@ -1,22 +1,42 @@
 #ifndef IOMEM_H
 #define IOMEM_H
+
 #include <stdint.h>
 #include <string.h>
+
+#define BDR_CLIP (0)
+#define BDR_CLAMP (1)
+#define BDR_REPEAT (2)
+#define BDR_FLIP (3)
+#define REVERSE (4)
+
+#define LAYER_ON (1)
+#define LAYER_FLIPX (2)
+#define LAYER_FLIPY (4)
+#define LAYER_AUX (8)
+
+#define MAX_LAYERS 256
+#define VRAM_SIZE 0x40000
+
+#define STATUS_CLOSE (1)
 
 typedef struct s_Voice Voice;
 struct s_Voice{
 	uint8_t volume;
 	uint8_t instrument;
 	uint16_t pitch;
-	uint16_t param;
-	
+	uint16_t param;	
 };
 
 typedef struct s_Input Input;
 struct s_Input {
 	uint32_t frame;
 	uint8_t status;
-	uint8_t reserved[3];
+	uint8_t reserved[1];
+	
+	uint8_t hoverX;
+	uint8_t hoverY;
+	
 	// inputs
 	struct {
 		uint8_t buttons[2];
@@ -36,20 +56,6 @@ typedef struct s_Color Color;
 struct s_Color {
 	uint8_t r,g,b,a;
 };
-
-#define BDR_CLIP (0)
-#define BDR_CLAMP (1)
-#define BDR_REPEAT (2)
-#define BDR_FLIP (3)
-
-#define AUX_NONE (0)
-#define AUX_PAL8 (1)
-#define AUX_ALPHA8 (2)
-
-#define LAYER_ON (1)
-
-#define MAX_LAYERS 256
-#define VRAM_SIZE 0x40000
 
 typedef struct s_Map Map;
 struct s_Map {
@@ -82,8 +88,7 @@ struct s_IOMem {
 	Input input;
 	Voice voices[32];
 	Layer layers[MAX_LAYERS];
-	uint8_t vram[512*512]; // 512x512
+	uint8_t vram[VRAM_SIZE]; // 512x512
 };
-
 
 #endif

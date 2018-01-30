@@ -1,45 +1,183 @@
+#ifndef CLIENT_C
+#define CLIENT_C
+
+#include "iomem.h"
+
+extern IOMem *io;
+extern uint8_t *vram;
+extern Layer *layers;
+extern volatile Input *input;
+void io_init(const char *shmid_str);
+void printf_xy(int x, int y, const char *fmt, ...);
+void frame_sync_interrupt(int frame) __attribute__((weak));
+
+#if __INCLUDE_LEVEL__ == 0
+
 #include "client.h"
-void framesync(int frame)
+#include "font4x6x1.h"
+#include "util.c"
+
+IOMem *io;
+uint8_t *vram;
+Layer *layers;
+volatile Input *input;
+
+void map_init(Map *self, int addr, int w, int h, uint8_t *data)
 {
-	printf_xy(54, 0, "%10d", frame);
-	vram[frame] = 2;
-	layers[0].flags = frame%10 < 4;
+	self->addr = (uint16_t)addr;
+	self->aux = self->addr;
+	self->w = (uint16_t)w;
+	self->h = (uint16_t)h;
+	self->x = 0;
+	self->y = 0;
+	for (int i=0; i < self->w * self->h; ++i)
+		vram[self->addr + i] = data? data[i] : 0;
 }
 
-int main(int argc, char *argv[])
-{	
-	cpu_init(argv[0]);
-
-	//~ tiles_init(&layers[0].tiles, 0x00, 1, 1, 1);
-	
-	//~ tiles_init_load32(&layers[0].tiles, 0x600, 8, 8, 4, 5, (uint32_t[]){ // heart
-		//~ 0x00000000,0x01000100,0x11101110,0x11111110,0x11111110,0x01111100,0x00111000,0x00010000,
-		//~ 0x11000022,0x11100222,0x01100220,0x00050000,0x00000000,0x03300440,0x33300444,0x33000044,
-		//~ 0x22222225,0x20101015,0x21010105,0x20101015,0x21010105,0x20101015,0x21010105,0x24444444,
-		//~ 0x22222222,0x21111112,0x21111112,0x21111112,0x21111112,0x21111112,0x21111112,0x22222222,
-		//~ 0x20000002,0x01000010,0x00100100,0x00011000,0x00011000,0x00100100,0x01000010,0x20000002,
-	//~ });
-	
-	printf_xy(0, 0, "Hello World!");
-	int_framesync(framesync);
-	
-	map_init(&layers[2].map, 0xa300, 16, 16, 0);
-	layers[2].palette = 0x9000;
-	tiles_init(&layers[2].tiles, 0xa300, 1, 1, 1);
-	layers[2].flags = LAYER_ON;
-	layers[2].map.y = -40;
-	layers[2].map.x = -40;
-	
-	for (int i=0; i < 256; ++i)
-		vram[0xa300+i] = i;
-	
-	
-	//~ int frame = 0;
-	while(1) {
-		//~ frame ++;
-		//~ if (frame%1000000 == 0)
-		sleep(1);
-		//~ usleep(25000);
+void palette_init(int addr, int num, uint32_t *data)
+{
+	for (int i=0; i < num; ++i) {
+		vram[addr + i*4 + 0] = data? ((data[i]>>24)&0xFF) : 0;
+		vram[addr + i*4 + 1] = data? ((data[i]>>16)&0xFF) : 0;
+		vram[addr + i*4 + 2] = data? ((data[i]>>8)&0xFF) : 0;
+		vram[addr + i*4 + 3] = data? (data[i]&0xFF) : 0;
 	}
-	return 1;
 }
+
+void tiles_load8(int addr, int words, uint8_t *data)
+{
+	for (int i = 0; i < words; ++i )
+		vram[addr + i] = data? data[i] : 0;
+}
+
+void tiles_load16(int addr, int words, uint16_t *data)
+{
+	for (int i = 0; i < words; ++i ) {
+		vram[addr + i*2 + 0] = data? ((data[i]>>8)&0xFF) : 0;
+		vram[addr + i*2 + 1] = data? (data[i]&0xFF) : 0;
+	}
+}
+
+void tiles_load32(int addr, int words, uint32_t *data)
+{
+	for (int i = 0; i < words; ++i ) {
+		vram[addr + i*4 + 0] = data? ((data[i]>>24)&0xFF) : 0;
+		vram[addr + i*4 + 1] = data? ((data[i]>>16)&0xFF) : 0;
+		vram[addr + i*4 + 2] = data? ((data[i]>>8)&0xFF) : 0;
+		vram[addr + i*4 + 3] = data? (data[i]&0xFF) : 0;
+	}
+}
+
+void tiles_init(Tiles *self, int addr, int w, int h, int b)
+{
+	self->addr = (uint16_t)addr;
+	self->w = (uint16_t)w;
+	self->h = (uint16_t)h;
+	self->bits = (b == 2 || b == 4)? b : 1;
+	self->num_tiles = 0;
+	int rowbits = self->w * self->bits;
+	self->row_bytes = (rowbits/8) + !!(rowbits%8);
+}
+
+void tiles_init_load8(Tiles *self, int addr, int w, int h, int b, int num, uint8_t *data)
+{
+	tiles_init(self, addr, w, h, b);
+	self->num_tiles = num-1;
+	tiles_load8(self->addr, self->row_bytes * self->h * (self->num_tiles+1), data);
+}
+
+void tiles_init_load16(Tiles *self, int addr, int w, int h, int b, int num, uint16_t *data)
+{
+	tiles_init(self, addr, w, h, b);
+	self->num_tiles = num-1;
+	tiles_load16(self->addr, (self->row_bytes/2) * self->h * (self->num_tiles+1), data);
+}
+
+void tiles_init_load32(Tiles *self, int addr, int w, int h, int b, int num, uint32_t *data)
+{
+	tiles_init(self, addr, w, h, b);
+	self->num_tiles = num-1;
+	tiles_load32(self->addr, (self->row_bytes/4) * self->h * (self->num_tiles+1), data);
+}
+
+
+
+void frame_sync_interrupt(int frame)
+{
+}
+
+void sig_handler(int sig) {
+	static int frame = 0;
+	frame_sync_interrupt(frame++);
+}
+
+void io_init(const char *shmid_str)
+{
+	char * endptr;
+	int shmid = (int)strtol(shmid_str, &endptr, 16);
+	if (shmid_str == endptr)
+		ABORT(1, "ROM Must be run as an argument to the server");
+	io = (IOMem*)shmat(shmid, NULL, 0);
+	if ((void*)io == (void*)-1)
+		ABORT(2, "Couldn't attache shared memory");
+
+	vram = io->vram;
+	layers = io->layers;
+	input = &io->input;
+	
+	signal(SIGUSR1, sig_handler);
+	
+	palette_init(0x9000, 6, (uint32_t[]) {
+		0xdddddd00,
+		0x00000080,
+		0xff5555ff,
+		0x55ff55ff,
+		0x5555ffff,
+		0xffff00ff,
+		0x444444ff});
+
+	
+	// Layer 0
+	map_init(&layers[0].map, 0x0000, 256, 144, 0);
+	layers[0].palette = 0x9000;
+	tiles_init(&layers[0].tiles, 0x0000, 1, 1, 1);
+	layers[0].flags = LAYER_ON;
+	
+	//Layer 1
+	map_init(&layers[1].map, 0x9700, 64, 24, 0);
+	layers[1].map.aux = 0xf300;
+	layers[1].palette = 0x9000;
+	tiles_init_load8(&layers[1].tiles, 0x9400, 4, 6, 1, 128, FONT4x6x1);
+	layers[1].flags = LAYER_ON | LAYER_AUX;
+
+}
+
+void printf_xy(int x, int y, const char *fmt, ...)
+{
+	char buffer[64*24+1];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, 64*24+1, fmt, args);	
+	va_end(args);
+	
+	int addr=y*64+x;
+	char *chr = buffer;
+	while (*chr) {
+		vram[(addr%(64*24)) + layers[1].map.addr] = (*chr)%128;
+		++addr;
+		++chr;
+	}
+}
+
+void printf_window(int ulX, int ulY, int brX, int brY, const char *fmt, ...)
+{
+	char buffer[64*24+1];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, 64*24+1, fmt, args);	
+	va_end(args);
+}
+
+#endif
+#endif
+

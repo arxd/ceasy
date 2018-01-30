@@ -11,6 +11,7 @@ void win_update();
 int win_init(int w, int h, EventCallback* callback);
 void win_fini();
 void win_on_exit(int status, void *arg);
+void win_hover(int *x, int *y);
 
 #if __INCLUDE_LEVEL__ == 0
 
@@ -30,6 +31,9 @@ struct s_Window {
 	GLFWwindow *fs_window;
 	EventCallback *callback;
 	int should_close;
+	int w, h;
+	int cx, cy;
+	
 };
 
 Window gw;
@@ -41,7 +45,15 @@ int win_should_close(void)
 
 void win_size(int *w, int *h)
 {
-	glfwGetFramebufferSize(gw.window, w, h);
+	*w = gw.w;
+	*h = gw.h;
+	//~ glfwGetFramebufferSize(gw.window, w, h);
+}
+void win_hover(int *x, int *y)
+{
+	*x = gw.cx;
+	*y = gw.cy;
+	//~ glfwGetFramebufferSize(gw.window, w, h);
 }
 
 double win_time(void)
@@ -55,11 +67,20 @@ void win_update(void)
 	glfwPollEvents();
 }
 
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	int x = xpos*256.0/gw.w;
+	int y = ypos*144.0/gw.h;
+	//~ printf("Mouse Move %.1f %.1f (%d, %d) %d %d\n", xpos, ypos, x, y,gw.w, gw.h);
+	gw.cx = x;
+	gw.cy = y;
+}
+
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	return;
 	float monitor_aspect = (16.0/9.0);
 	if (fabs((double)width /height - monitor_aspect) > 0.01) {
+		//~ printf("BAD");
 		if ((double) width/height > monitor_aspect)
 			width = height*monitor_aspect;
 		else
@@ -70,6 +91,8 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 		}
 		glfwSetWindowSize(window, width, height);
 	} else {
+		gw.w = width;
+		gw.h = height;
 		glViewport(0, 0, width, height);
 	}
 }
@@ -80,9 +103,12 @@ static void set_window(GLFWwindow *w)
 	glfwMakeContextCurrent(gw.window);
 	//~ init_gl();
 	//~ glfwSwapInterval(0);
+	//~ glfwSetWindowAspectRatio(gw.window, 16, 9);
+	//~ glfwSetWindowSizeLimits(gw.window, 256, 144, GLFW_DONT_CARE, GLFW_DONT_CARE);
 	glfwSetFramebufferSizeCallback(gw.window, framebuffer_size_callback);
 	//~ glfwSetKeyCallback(window, key_callback);
 	//~ glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, 1);
+	glfwSetCursorPosCallback(gw.window, cursor_position_callback);
 	
 	int width, height;
 	glfwGetFramebufferSize(gw.window, &width, &height);
