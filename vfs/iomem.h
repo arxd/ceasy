@@ -47,8 +47,9 @@ struct s_Color {
 #define AUX_ALPHA8 (2)
 
 #define LAYER_ON (1)
-//~ #define LAYER_OFF (0)
+
 #define MAX_LAYERS 256
+#define VRAM_SIZE 0x40000
 
 typedef struct s_Map Map;
 struct s_Map {
@@ -81,8 +82,7 @@ struct s_IOMem {
 	Input input;
 	Voice voices[32];
 	Layer layers[MAX_LAYERS];
-	// fowllowing data is 256*256 to fit in a texture
-	uint8_t vram[256*256];
+	uint8_t vram[512*512]; // 512x512
 };
 
 

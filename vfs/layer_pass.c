@@ -16,7 +16,7 @@ FrameBuffer g_fb;
 Shader g_layer_shader;
 //~ Shader g_tile_shader;
 
-Texture g_vram_tex = {0, 256, 256, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
+Texture g_vram_tex = {0, 512, 512, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE};
 
 extern unsigned char *vram;
 

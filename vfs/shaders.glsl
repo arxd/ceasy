@@ -37,7 +37,7 @@ uniform bvec2 uClamp;
 
 float mem(float idx)
 {
-	return texture2D(uFramebuffer,  (vec2(mod(idx, 256.0), floor(idx/256.0))+0.5) / 256.0).a;
+	return texture2D(uFramebuffer,  (vec2(mod(idx, 512.0), floor(idx/512.0))+0.5) / 512.0).a;
 }
 
 float memi(float idx)

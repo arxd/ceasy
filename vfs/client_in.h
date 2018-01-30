@@ -7,7 +7,7 @@
 #include <signal.h>
 
 IOMem *io;
-uint8_t *vram;
+volatile uint8_t *vram;
 Layer *layers;
 
 void iomem_init(void *mem)

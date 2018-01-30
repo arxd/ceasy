@@ -18,7 +18,7 @@ SubProc g_subproc;
 IOMem *io;
 //~ Voice *voices;
 //~ Object *objects;
-uint8_t *vram;
+volatile uint8_t *vram;
 //~ Color *palette;
 //~ Sprite *sprites;
 //~ Mapel *maps;
