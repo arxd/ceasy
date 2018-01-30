@@ -23,6 +23,17 @@ int main(int argc, char *argv[])
 	printf_xy(0, 0, "Hello World!");
 	int_framesync(framesync);
 	
+	map_init(&layers[2].map, 0xa300, 16, 16, 0);
+	layers[2].palette = 0x9000;
+	tiles_init(&layers[2].tiles, 0xa300, 1, 1, 1);
+	layers[2].flags = LAYER_ON;
+	layers[2].map.y = -40;
+	layers[2].map.x = -40;
+	
+	for (int i=0; i < 256; ++i)
+		vram[0xa300+i] = i;
+	
+	
 	//~ int frame = 0;
 	while(1) {
 		//~ frame ++;

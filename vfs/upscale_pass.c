@@ -5,7 +5,6 @@ void upscale_begin(int w, int h);
 void upscale_init(void);
 void upscale_draw(void);
 
-
 #if __INCLUDE_LEVEL__ == 0
 
 #include "glhelper.c"
@@ -33,7 +32,6 @@ void upscale_init(void)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
 	glVertexAttribPointer(g_upscale_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(g_upscale_shader.args[0]);
-
 }
 
 void upscale_begin(int w, int h)

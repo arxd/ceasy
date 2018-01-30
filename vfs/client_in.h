@@ -148,6 +148,18 @@ void cpu_init(const char *shmid_str)
 	map_init(&layers[1].map, 0x9700, 64, 24, 0);
 	//0x9000 palette
 	layers[1].palette = 0x9000;
+	
+	//~ float factors[] = {
+		//~ 1.0, 1.0, 1.0,
+		
+	//~ for (i=0; i < 256; ++i) {
+		
+		
+		//~ vram[0x9000 + i*4 + 0] = 
+		
+	//~ }
+	
+	
 	palette_init(0x9000, 6, (uint32_t[]) {
 		0xdddddd00,
 		0x000000ff,
