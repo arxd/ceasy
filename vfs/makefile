@@ -32,8 +32,9 @@ build/server.o: server.c subproc.c share.c window_glfw.c glhelper.c util.c upsca
 shaders.h: ccglsl shaders.glsl
 	./ccglsl shaders.glsl shaders.h
 
-client.h: client_in.h iomem.h
-	cat iomem.h > client.h
+client.h: client_in.h iomem.h font4x6x1.h
+	cat font4x6x1.h > client.h
+	cat iomem.h >> client.h
 	cat client_in.h >> client.h
 
 

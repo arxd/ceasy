@@ -216,8 +216,6 @@ int framebuffer_init(FrameBuffer *self, int w, int h)
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->txid, 0);
 	printf("BG Framebuffer Ready %d (%d)\n", glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE); 
-	glClearColor(0.498, 0.624 , 0.682, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0); // put the default framebuffer back
 	return 1;
 }

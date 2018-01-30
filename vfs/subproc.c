@@ -12,6 +12,7 @@ int subproc_init(SubProc *self, const char *path, char *const argv[]);
 int subproc_status(SubProc *self);
 void subproc_fini(SubProc *self);
 void subproc_on_exit(int status, void *arg);
+void subproc_signal(SubProc *self);
 
 #if __INCLUDE_LEVEL__ == 0
 
@@ -79,6 +80,10 @@ void subproc_on_exit(int status, void *arg)
 	subproc_fini((SubProc*)arg);
 }
 
+void subproc_signal(SubProc *self)
+{
+	kill(self->pid, SIGUSR1);
+}
 
 
 #endif

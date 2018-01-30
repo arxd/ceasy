@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
@@ -36,6 +37,8 @@ FrameBuffer g_fb;
 
 void game_init(void)
 {
+	glEnable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	// create the frame buffer
 	glActiveTexture(GL_TEXTURE0);
 	framebuffer_init(&g_fb, 256, 256);
@@ -52,13 +55,16 @@ void game_update(void)
 	win_size(&r, &c);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.fbid);
-	//~ layerpass_begin();
-	//~ layerpass_draw();
+	glViewport(0, 0, 256, 144);
+	
+	glClearColor(0.498, 0.624 , 0.682, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	layer_pre_render();
-	layer_render(layers);
-	
-	
-	
+	for (int i=0; i < MAX_LAYERS; ++i) {
+		if (layers[i].flags & LAYER_ON)
+			layer_render(&layers[i]);	
+	}
 	// upscale it
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
@@ -69,19 +75,11 @@ void game_update(void)
 	
 }
 
-//~ uint32_t default_palette[256] = { // ABGR
-	//~ 0x00000000, 0x00111111, 0x00222222, 0x00333333, 0x00444444, 0x00555555, 0x00666666, 0x00777777, 0x00888888, 0x00999999, 0x00aaaaaa, 0x00bbbbbb, 0x00cccccc, 0x00dddddd, 0x00eeeeee, 0x00ffffff,
-	//~ 0x0};
-
 void iomem_init(void *mem)
 {
 	io = (IOMem*)mem;
-	//~ voices = io->voices;
 	layers = io->layers;
 	vram = io->vram;
-	//~ palette = io->palette;
-	//~ sprites = io->sprites;
-	//~ maps = io->maps;
 	
 }
 
@@ -93,7 +91,6 @@ int main(int argc, char *argv[])
 	on_exit(shm_on_exit, &g_shm);
 	iomem_init(g_shm.mem);
 	memset(io, 0, sizeof(IOMem));
-	//~ memcpy((void*)palette, (void*)default_palette, 256);
 
 	char *prog = argv[1];
 	int a;
@@ -112,7 +109,7 @@ int main(int argc, char *argv[])
 	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
 	//~ ipc_init(ipc, ipc+1);
 	
-	if (!win_init(256*3,144*3, event_callback))
+	if (!win_init(256*4,144*4, event_callback))
 		ABORT(3, "win_init failed");
 	on_exit(win_on_exit, 0);
 	
@@ -121,6 +118,7 @@ int main(int argc, char *argv[])
 	while(!(subproc_status(&g_subproc) || win_should_close())) {
 		game_update();
 		win_update();
+		subproc_signal(&g_subproc);
 	}
 
 	ABORT(0, "Goodbye");

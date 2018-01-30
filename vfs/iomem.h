@@ -42,71 +42,47 @@ struct s_Color {
 #define BDR_REPEAT (2)
 #define BDR_FLIP (3)
 
+#define AUX_NONE (0)
+#define AUX_PAL8 (1)
+#define AUX_ALPHA8 (2)
+
+#define LAYER_ON (1)
+//~ #define LAYER_OFF (0)
+#define MAX_LAYERS 256
+
+typedef struct s_Map Map;
+struct s_Map {
+	uint16_t addr;	///< Address of the map data
+	uint16_t aux;	///< Address of the auxillary map data (if equal to addr then not used)
+	uint16_t w,h;	///< Width/Height of the layer map (in tiles)
+	int16_t x,y;	///< Signed screen offset in pixels
+};
+
+typedef struct s_Tiles Tiles;
+struct s_Tiles {
+	uint16_t addr;		///< Address of the tile data
+	uint16_t w,h;		///< Width / Height of one tile in pixels
+	uint16_t row_bytes;	///< Number of bytes to encode one row of a tile
+	uint8_t bits;		///< Number of bits per pixel (1, 2, 4)
+	uint8_t num_tiles;	///< Number of tiles - 1 (helpful information) (max 256)
+};
+
 typedef struct s_Layer Layer;
 struct s_Layer {
-	uint16_t map;		///< address of the layer map
-	uint16_t mapW;	///< Width of the layer map (in tiles)
-	uint16_t mapH;	///< Height
-	int16_t mapX;		///< x offset of the layer map (in pixles)
-	int16_t mapY;		///< y offset
-	uint16_t tiles;		///< Address of the tile data
-	uint8_t tileW;		///< Width of a tile (in pixels).
-	uint8_t tileH;		///< Height
+	Map map;
+	Tiles tiles;
 	uint16_t palette;	///< Address of the palette data
-	uint8_t tileBits;		///< Bits per tile texel (1, 2, 4, 8)
 	uint8_t border;		///< How tiles outside the map are handled.  x(high nibble) y(low nibble)
-};
-
-typedef struct s_Object Object;
-struct s_Object {
-	uint16_t address;
-	uint8_t width;
-	uint8_t height;
-	int16_t xoff;
-	int16_t yoff;
-	uint8_t alpha;
-#ifdef LITTLE_ENDIAN
-	uint8_t xBounds:2;
-	uint8_t yBounds:2;
-	uint8_t flags:4;
-#else
-	uint8_t flags:4;
-	uint8_t yBounds:2;
-	uint8_t xBounds:2;
-#endif
-};
-
-typedef struct s_Sprite Sprite;
-struct s_Sprite {
-	uint8_t data[8*4];
-};
-
-typedef struct s_Mapel Mapel;
-struct s_Mapel {
-	uint8_t sprite;
-#ifdef LITTLE_ENDIAN
-	uint8_t flipx:1;
-	uint8_t flipy:1;
-	uint8_t alpha :2;
-	uint8_t color:4;
-#else
-	uint8_t color:4;
-	uint8_t alpha :2;
-	uint8_t flipy:1;
-	uint8_t flipx:1;
-#endif	
+	uint8_t flags;		
 };
 
 typedef struct s_IOMem IOMem;
 struct s_IOMem {
 	Input input;
 	Voice voices[32];
-	Layer layers[256];
+	Layer layers[MAX_LAYERS];
 	// fowllowing data is 256*256 to fit in a texture
-	uint8_t vram[256*256];	// 144 rows
-	//~ Color palette[256];		// 4 rows
-	//~ Sprite sprites[256];		// 32 rows
-	//~ Mapel maps[9728];		// 76 rows
+	uint8_t vram[256*256];
 };
 
 
