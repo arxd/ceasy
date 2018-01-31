@@ -1,19 +1,14 @@
 #ifndef CLIENT_C
 #define CLIENT_C
 
-#include "iomem.h"
-
-extern IOMem *io;
-extern uint8_t *vram;
-extern Layer *layers;
-extern volatile Input *input;
-void io_init(const char *shmid_str);
-void printf_xy(int x, int y, const char *fmt, ...);
-void frame_sync_interrupt(int frame) __attribute__((weak));
-
 #if __INCLUDE_LEVEL__ == 0
 
-#include "client.h"
+#include <stdarg.h>
+#include <unistd.h>
+#include <signal.h>
+#include <time.h>
+
+#include "pixie.h"
 #include "font4x6x1.h"
 #include "util.c"
 
@@ -100,7 +95,15 @@ void tiles_init_load32(Tiles *self, int addr, int w, int h, int b, int num, uint
 	tiles_load32(self->addr, (self->row_bytes/4) * self->h * (self->num_tiles+1), data);
 }
 
-
+double now(void)
+{
+	static struct timespec t0 = {0xFFFFFFFF, 0xFFFFFFFF};
+	if (t0.tv_nsec == 0xFFFFFFFF) 
+		clock_gettime(CLOCK_REALTIME, &t0);
+	struct timespec t1;
+	clock_gettime(CLOCK_REALTIME, &t1);
+	return (t1.tv_sec - t0.tv_sec) + 1.0e-9*( t1.tv_nsec - t0.tv_nsec);
+}
 
 void frame_sync_interrupt(int frame)
 {

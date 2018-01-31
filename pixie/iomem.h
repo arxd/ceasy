@@ -20,6 +20,14 @@
 
 #define STATUS_CLOSE (1)
 
+
+#define K_ENTER 1
+#define K_UP
+#define K_DOWN
+#define K_LEFT
+#define K_RIGHT
+
+
 typedef struct s_Voice Voice;
 struct s_Voice{
 	uint8_t volume;
@@ -32,16 +40,18 @@ typedef struct s_Input Input;
 struct s_Input {
 	uint32_t frame;
 	uint8_t status;
-	uint8_t reserved[1];
-	
+	uint8_t getchar;
 	uint8_t hoverX;
 	uint8_t hoverY;
 	
 	// inputs
 	struct {
-		uint8_t buttons[2];
+		uint8_t buttons;
+		uint8_t mod;
 		uint8_t x;
 		uint8_t y;
+		uint8_t x0;
+		uint8_t y0;
 	} touch[4];
 	
 	struct {
@@ -49,7 +59,11 @@ struct s_Input {
 		uint8_t buttons[2];
 	} controllers[4];
 	
-	uint8_t keys[16];
+	uint32_t alpha;
+	uint32_t num;
+	uint32_t function;
+	uint32_t cmd;
+	uint32_t mod;
 };
 
 typedef struct s_Color Color;
@@ -85,10 +99,10 @@ struct s_Layer {
 
 typedef struct s_IOMem IOMem;
 struct s_IOMem {
+	uint8_t vram[VRAM_SIZE]; // 512x512
 	Input input;
 	Voice voices[32];
 	Layer layers[MAX_LAYERS];
-	uint8_t vram[VRAM_SIZE]; // 512x512
 };
 
 #endif

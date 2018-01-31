@@ -32,14 +32,14 @@ void layerpass_init(void)
 		ABORT(1, "Couldn't create layer shader");
 	on_exit(shader_on_exit, &g_layer_shader);
 
-	GLuint vb, tvb;
-	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
-	// position coors
-	glGenBuffers(1, &vb);
-	glBindBuffer(GL_ARRAY_BUFFER, vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_layer_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_layer_shader.args[0]);
+	//~ GLuint vb, tvb;
+	//~ GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	//~ // position coors
+	//~ glGenBuffers(1, &vb);
+	//~ glBindBuffer(GL_ARRAY_BUFFER, vb);
+	//~ glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
+	//~ glVertexAttribPointer(g_layer_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	//~ glEnableVertexAttribArray(g_layer_shader.args[0]);
 	
 	glActiveTexture(GL_TEXTURE0);
 	tex_set(&g_vram_tex, vram);
@@ -73,7 +73,21 @@ void layer_render(Layer *layer)
 	glUniform2i(g_layer_shader.args[13], !!(layer->flags&LAYER_FLIPX),!!(layer->flags)&LAYER_FLIPY); // uReverse
 	glUniform1f(g_layer_shader.args[14], (layer->flags&LAYER_AUX)? layer->map.aux: -1.0); // uReverse
 	glViewport(0, 0, 256, 144);
+
+
+	GLuint vb;
+	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	// position coors
+	glGenBuffers(1, &vb);
+	glBindBuffer(GL_ARRAY_BUFFER, vb);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
+	glVertexAttribPointer(g_layer_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_layer_shader.args[0]);
+
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDeleteBuffers(1, &vb);
+
 	gl_error_check();
 }
 

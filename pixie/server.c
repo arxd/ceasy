@@ -16,12 +16,8 @@
 SharedMem g_shm;
 SubProc g_subproc;
 IOMem *io;
-//~ Voice *voices;
-//~ Object *objects;
 volatile uint8_t *vram;
-//~ Color *palette;
-//~ Sprite *sprites;
-//~ Mapel *maps;
+Input *input;
 Layer *layers;
 
 void event_callback(int type, float ts, int p1, int p2)
@@ -33,7 +29,7 @@ void event_callback(int type, float ts, int p1, int p2)
 //~ Shader g_shader;
 //~ Shader g_upscale_shader;
 
-FrameBuffer g_fb;
+//~ FrameBuffer g_fb;
 
 void game_init(void)
 {
@@ -41,8 +37,8 @@ void game_init(void)
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	// create the frame buffer
 	glActiveTexture(GL_TEXTURE0);
-	framebuffer_init(&g_fb, 256, 256);
-	on_exit(framebuffer_on_exit, &g_fb);
+	//~ framebuffer_init(&g_fb, 256, 256);
+	//~ on_exit(framebuffer_on_exit, &g_fb);
 	layerpass_init();
 	upscale_init();
 	
@@ -53,33 +49,32 @@ void game_update(void)
 {
 	int r,c;
 	win_size(&r, &c);
+	//~ glClearColor(0.498, 0.0 , 0.682, 1.0);
+	//~ glClear(GL_COLOR_BUFFER_BIT);
+	//~ return;
+	static int once = 1;
+	if (once) {
+		bind_256_framebuffer();
+		glViewport(0, 0, 256, 144);
+		
+		glClearColor(0.498, 0.624 , 0.682, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.fbid);
-	glViewport(0, 0, 256, 144);
-	
-	glClearColor(0.498, 0.624 , 0.682, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	layer_pre_render();
-	for (int i=0; i < MAX_LAYERS; ++i) {
-		if (layers[i].flags & LAYER_ON)
-			layer_render(&layers[i]);	
+		layer_pre_render();
+		for (int i=0; i < MAX_LAYERS; ++i) {
+			if (layers[i].flags & LAYER_ON)
+				layer_render(&layers[i]);	
+		}
+		// upscale it
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glActiveTexture(GL_TEXTURE0);
+		//~ once = 0;
 	}
-	// upscale it
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, g_fb.txid);
+	bind_256_texture();
+	//~ glBindTexture(GL_TEXTURE_2D, g_fb.txid);
 	upscale_begin(r,c);
 	upscale_draw();
 	gl_error_check();
-	
-}
-
-void iomem_init(void *mem)
-{
-	io = (IOMem*)mem;
-	layers = io->layers;
-	vram = io->vram;
 	
 }
 
@@ -89,7 +84,10 @@ int main(int argc, char *argv[])
 	if (!shm_init(&g_shm, sizeof(IOMem)))
 		ABORT(1, "Couldn't created shared memory segment");
 	on_exit(shm_on_exit, &g_shm);
-	iomem_init(g_shm.mem);
+	io = (IOMem*)g_shm.mem;
+	layers = io->layers;
+	vram = io->vram;
+	input = &io->input;
 	memset(io, 0, sizeof(IOMem));
 
 	char *prog = argv[1];
@@ -116,13 +114,6 @@ int main(int argc, char *argv[])
 	game_init();
 	
 	while(!(subproc_status(&g_subproc))) {
-		if (win_should_close())
-			io->input.status |= STATUS_CLOSE;
-		int x, y;
-		win_hover(&x, &y);
-		io->input.hoverX = x;
-		io->input.hoverY = y;
-
 		game_update();
 		win_update();
 		subproc_signal(&g_subproc);

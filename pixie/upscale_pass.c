@@ -24,14 +24,14 @@ void upscale_init(void)
 		ABORT(1, "Couldn't create fb shader");
 	on_exit(shader_on_exit, &g_upscale_shader);
 	
-	GLuint vb, tvb;
-	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
-	// position coors
-	glGenBuffers(1, &vb);
-	glBindBuffer(GL_ARRAY_BUFFER, vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_upscale_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_upscale_shader.args[0]);
+	//~ GLuint vb, tvb;
+	//~ GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	//~ // position coors
+	//~ glGenBuffers(1, &vb);
+	//~ glBindBuffer(GL_ARRAY_BUFFER, vb);
+	//~ glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
+	//~ glVertexAttribPointer(g_upscale_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	//~ glEnableVertexAttribArray(g_upscale_shader.args[0]);
 }
 
 void upscale_begin(int w, int h)
@@ -44,7 +44,18 @@ void upscale_begin(int w, int h)
 
 void upscale_draw(void)
 {
+	GLuint vb;
+	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	// position coors
+	glGenBuffers(1, &vb);
+	glBindBuffer(GL_ARRAY_BUFFER, vb);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
+	glVertexAttribPointer(g_upscale_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_upscale_shader.args[0]);
+
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDeleteBuffers(1, &vb);
 	gl_error_check();
 }
 

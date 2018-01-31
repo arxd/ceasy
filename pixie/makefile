@@ -2,7 +2,7 @@
 CFLAGS=-g -DEBUG
 $(shell mkdir -p build)
 
-build/client.o: client.c client.h util.c
+build/client.o: client.c pixie.h util.c
 	clang -c -o $@ $< $(CFLAGS)
 	
 build/share.o: share.c util.c
@@ -28,40 +28,31 @@ build/upscale_pass.o: upscale_pass.c util.c shaders.h
 	
 build/server.o: server.c subproc.c share.c window_glfw.c glhelper.c util.c upscale_pass.c layer_pass.c iomem.h
 	clang -c -o $@ $< $(CFLAGS)
-
-build/mei.o: mei.c client.h
-	clang -c -o $@ $< $(CFLAGS)
 	
 shaders.h: ccglsl shaders.glsl
 	./ccglsl shaders.glsl shaders.h
 
-#~ client.h: client_in.h iomem.h font4x6x1.h
-	#~ cat font4x6x1.h > client.h
-	#~ cat iomem.h >> client.h
-	#~ cat client_in.h >> client.h
-
-
 build/shader_compiler.o: shader_compiler.c util.c
 	clang -c -o $@ $< $(CFLAGS)
 
-all: mei server ccglsl;
+all: libpixie.a pixie ccglsl
 
-mei: build/mei.o build/client.o build/util.o
-	clang -o $@ $^ -lm
-	
-server: build/server.o build/subproc.o build/window_glfw.o build/upscale_pass.o build/share.o build/util.o build/glhelper.o build/layer_pass.o
+libpixie.a: build/client.o build/util.o
+	ar rcs $@ $^
+
+pixie: build/server.o build/subproc.o build/window_glfw.o build/upscale_pass.o build/share.o build/util.o build/glhelper.o build/layer_pass.o
 	clang -o $@ $^ -lGLESv2 -lglfw
 
 ccglsl: build/shader_compiler.o build/glhelper.o build/util.o
 	clang -o $@ $^ -lGLESv2 -lglfw
 
 
-.PHONEY: clean
+.PHONEY: clean all
 
 clean:
 	rm -rf build
-	rm -f server
+	rm -f pixie
 	rm -f ccglsl
-	rm -f mei
+	rm -f libpixie.a
 	rm -f shaders.h
 	
