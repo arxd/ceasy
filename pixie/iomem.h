@@ -8,7 +8,6 @@
 #define BDR_CLAMP (1)
 #define BDR_REPEAT (2)
 #define BDR_FLIP (3)
-#define REVERSE (4)
 
 #define LAYER_ON (1)
 #define LAYER_FLIPX (2)
