@@ -2,11 +2,21 @@
 
 A fun, simple library for playing with the C language through memory mapped IO.
 
-C is a very fun programming language because it is a very low high-level language.  It maintains a close connection with the CPU and memory, and the high level constructs have a fairly straight-forward mapping into the underlying assembly code.
+C is a fun programming language because it is a very low, high-level language.  It maintains a close connection with the CPU and memory, and the high level constructs have a fairly straight-forward mapping into the underlying assembly code.
 
 However, when just learning C for the first time, or trying to play around with the language, you are either stuck with <stdio.h> or confront large complicated interfaces of more capable libraries.  Neither of which is very fun.
 
 Ceasy is a collection of 'virtual devices'.  Toys that can be programmed easily with C by using [memory mapped IO](#memory-mapped-io) instead of traditional functional interfaces.
+
+The idea is that you write your code and compile it without any complicated linkages (or none).
+  
+  `gcc my_code.c`
+
+Then, instead of executing your program directly, you execute it indirectly on one of the Ceasy 'virtual devices'
+
+  `pixie a.out`.  
+
+
 
 Currently there is only one 'device', [Pixie](#pixie).
 
