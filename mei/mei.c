@@ -3,6 +3,7 @@
 
 void frame_sync_interrupt(int frame)
 {
+	
 }
 
 
@@ -24,10 +25,8 @@ int main(int argc, char *argv[])
 	//~ mei[1] = 4;
 
 	
-	for (int i=0; i < 256*144; ++i) {
-		vram[i] = i;
-	}	
-	while(!(input->status & STATUS_CLOSE))
-		sleep(1);
+
+
+	while(!(input->status & STATUS_CLOSE)) sleep(1);
 	return 0;
 }

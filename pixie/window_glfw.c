@@ -8,8 +8,6 @@ void win_update();
 double time();
 int win_init(int w, int h, EventCallback* callback);
 void win_on_exit(int status, void *arg);
-void bind_256_framebuffer(void);
-void bind_256_texture(void);
 
 #if __INCLUDE_LEVEL__ == 0
 
@@ -24,6 +22,7 @@ void bind_256_texture(void);
 #include "iomem.h"
 
 extern Input *input;
+void gl_context_change(void);
 
 typedef struct s_Window Window;
 struct s_Window {
@@ -71,34 +70,71 @@ void win_update(void)
 		input->getchar = gw.input_chars[--gw.input_i];
 	if (glfwWindowShouldClose(gw.window))
 		input->status |= STATUS_CLOSE;
+	
+	//~ int x,y;
+	//~ static int f = 0;
+	//~ ++f;
+	//~ glfwGetWindowPos	(gw.window, &x, &y);
+	//~ if(! (f%30))
+		//~ printf("%d, %d\n", x, y);
 
 }
 
-void bind_256_framebuffer(void)
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, gw.fbobj);
-}
-
-void bind_256_texture(void)
-{
-	glBindTexture(GL_TEXTURE_2D, gw.fbtex);
-}
-
-void del_framebuffer(void)
-{
-	if (gw.fbobj) {
-		//~ DEBUG("Delete FB");
-		glDeleteFramebuffers(1, &gw.fbobj);
-	}
-	gw.fbobj = 0;
-}
 
 void set_window(GLFWwindow *w);
+
+GLFWmonitor* cur_monitor(void)
+{
+	int count, xpos, ypos;
+	GLFWmonitor** monitors = glfwGetMonitors(&count);
+	GLFWmonitor *monitor =glfwGetPrimaryMonitor() ;
+	glfwGetWindowPos(gw.window, &xpos, &ypos);
+	for (int m=0; m < count; ++m) {
+		int mx, my;
+		glfwGetMonitorPos(monitors[m], &mx, &my);
+		const GLFWvidmode* mode = glfwGetVideoMode(monitors[m]);
+		DEBUG("MONITOR %s: %dx%d (%d, %d) %d", glfwGetMonitorName(monitors[m]), 
+			mode->width,mode->height, mx,my, mode->refreshRate);
+		int nmodes;
+		const GLFWvidmode* modes = glfwGetVideoModes(monitors[m], &nmodes);
+		for (int d=0; d < nmodes; ++d)
+			DEBUG ("\t%dx%d %d", modes[d].width, modes[d].height, modes[d].refreshRate);
+		
+		if (xpos > mx && ypos > my && xpos < mx+mode->width && ypos < my+mode->height)
+			monitor = monitors[m];
+	}
+	return monitor;
+}
+
+void do_fullscreen2(void)
+{
+	static int xpos, ypos, width, height;
+
+	if (gw.fs) {
+		glfwSetWindowMonitor(gw.window, NULL, xpos, ypos, width, height, 0);
+	} else {
+		glfwGetWindowPos(gw.window, &xpos, &ypos);
+		glfwGetWindowSize(gw.window, &width, &height);
+		// figure out which monitor we are on
+		GLFWmonitor *monitor = cur_monitor();
+		
+		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+		DEBUG("FS ON %s: %dx%d", glfwGetMonitorName(monitor), mode->width, mode->height);
+		glfwSetWindowMonitor(gw.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+	}
+	gw.fs = !gw.fs;
+	
+}
 
 void do_fullscreen(void)
 {
 	if (!gw.fs_window) { // we need to make a fullscreen window
-		GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+		GLFWmonitor *monitor =cur_monitor();
+		int count;
+		//~ GLFWmonitor** monitors = glfwGetMonitors(&count);
+		//~ for (int m=0; m < count; ++m)
+			//~ DEBUG("MONITOR %d: %s ", m, glfwGetMonitorName(monitors[m]));
+		
 		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 		glfwWindowHint(GLFW_RED_BITS, mode->redBits);
 		glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
@@ -113,13 +149,11 @@ void do_fullscreen(void)
 	}
 	if (gw.fs) {
 		DEBUG("go Windowed");
-		del_framebuffer();
 		set_window(gw.w_window);
 		glfwDestroyWindow(gw.fs_window);
 		gw.fs_window = 0;
 	} else {
 		DEBUG("go FS");
-		del_framebuffer();
 		set_window(gw.fs_window);
 		//glfwHideWindow(gw.w_window);
 	}
@@ -236,9 +270,6 @@ void set_window(GLFWwindow *w)
 {
 	gw.window = w;
 	glfwMakeContextCurrent(gw.window);
-	
-	glEnable (GL_BLEND);
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//~ init_gl();
 	//~ glfwSwapInterval(0);
@@ -256,17 +287,18 @@ void set_window(GLFWwindow *w)
 	int width, height;
 	glfwGetFramebufferSize(gw.window, &width, &height);
 	framebuffer_size_callback(gw.window, width, height);
+	gl_context_change();
 	
 	// set up a framebuffer for this new context
-	if (gw.fbobj)
-		ABORT(9, "fbobj should have been released");
-	glGenFramebuffers(1, &gw.fbobj);
-	glBindFramebuffer(GL_FRAMEBUFFER, gw.fbobj);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gw.fbtex, 0);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		fprintf(stderr, "Couldn't get framebuffer (%d) ready! %d %d %d %d\n", gw.fbobj, glCheckFramebufferStatus(GL_FRAMEBUFFER),
-		GL_FRAMEBUFFER_COMPLETE, GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT,GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0); // put the default framebuffer back
+	//~ if (gw.fbobj)
+		//~ ABORT(9, "fbobj should have been released");
+	//~ glGenFramebuffers(1, &gw.fbobj);
+	//~ glBindFramebuffer(GL_FRAMEBUFFER, gw.fbobj);
+	//~ glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gw.fbtex, 0);
+	//~ if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		//~ fprintf(stderr, "Couldn't get framebuffer (%d) ready! %d %d %d %d\n", gw.fbobj, glCheckFramebufferStatus(GL_FRAMEBUFFER),
+		//~ GL_FRAMEBUFFER_COMPLETE, GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT,GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS);
+	//~ glBindFramebuffer(GL_FRAMEBUFFER, 0); // put the default framebuffer back
 }
 
 static void error_callback(int error, const char* description)
@@ -276,11 +308,10 @@ static void error_callback(int error, const char* description)
 
 void win_fini(void)
 {
-	del_framebuffer();
-	if (gw.fbtex) {
+	//~ if (gw.fbtex) {
 		//~ DEBUG("Delete FB Texture");
-		glDeleteTextures(1, &gw.fbtex);
-	}
+		//~ glDeleteTextures(1, &gw.fbtex);
+	//~ }
 	if (gw.fs_window) {
 		DEBUG("Destroy FS window");
 		glfwDestroyWindow(gw.fs_window);
@@ -317,16 +348,16 @@ int win_init(int w, int h, EventCallback* callback)
 		return 0;
 	}
 	// create a texture for our framebuffer
-	glfwMakeContextCurrent(gw.w_window);
-	glGenTextures(1, &gw.fbtex);
-	DEBUG("MAKE TEX %d", gw.fbtex);
-	glBindTexture(GL_TEXTURE_2D, gw.fbtex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	//~ glfwMakeContextCurrent(gw.w_window);
+	//~ glGenTextures(1, &gw.fbtex);
+	//~ DEBUG("MAKE TEX %d", gw.fbtex);
+	//~ glBindTexture(GL_TEXTURE_2D, gw.fbtex);
+	//~ glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
 
 	set_window(gw.w_window);
 	glfwSetTime (0.0);

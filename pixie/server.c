@@ -9,9 +9,8 @@
 #include "glhelper.c"
 #include "subproc.c"
 #include "share.c"
-#include "layer_pass.c"
-#include "upscale_pass.c"
 #include "iomem.h"
+#include "shaders.h"
 
 SharedMem g_shm;
 SubProc g_subproc;
@@ -26,55 +25,116 @@ void event_callback(int type, float ts, int p1, int p2)
 	
 	
 }
-//~ Shader g_shader;
-//~ Shader g_upscale_shader;
 
-//~ FrameBuffer g_fb;
+Shader g_upscale_shader;
+Shader g_layer_shader;
 
-void game_init(void)
+GLuint g_vb = 0;
+
+FrameBuffer g_fb = {0};
+Texture g_vram_tex = {0, 512, 512, GL_ALPHA, GL_UNSIGNED_BYTE};
+
+void layer_render(Layer *layer)
+{	
+	glUniform1f(g_layer_shader.args[2], layer->map.addr); // uMap
+	glUniform2f(g_layer_shader.args[3], layer->map.w, layer->map.h);//uMapSize
+	glUniform2f(g_layer_shader.args[4], layer->map.x, layer->map.y);//uOffset
+	glUniform1f(g_layer_shader.args[5], layer->tiles.addr);//uTiles
+	glUniform2f(g_layer_shader.args[6], layer->tiles.w, layer->tiles.h);//uTileSize
+	glUniform1f(g_layer_shader.args[7], layer->tiles.row_bytes);//uTileRowSize
+	glUniform1i(g_layer_shader.args[8], layer->tiles.bits);//uTileBits
+	glUniform1f(g_layer_shader.args[9], layer->palette);//uPalette	
+	glUniform2i(g_layer_shader.args[10], ((layer->border>>4)&0x7) == BDR_CLIP, ((layer->border)&0x7)  == BDR_CLIP); // uClip
+	glUniform2i(g_layer_shader.args[11], (layer->border>>4)&0x1, layer->border&1); // uClamp
+	glUniform2i(g_layer_shader.args[12], ((layer->border>>4)&0x7)  == BDR_FLIP, ((layer->border)&0x7)  == BDR_FLIP); // uFlip
+	glUniform2i(g_layer_shader.args[13], !!(layer->flags&LAYER_FLIPX),!!(layer->flags)&LAYER_FLIPY); // uReverse
+	glUniform1f(g_layer_shader.args[14], (layer->flags&LAYER_AUX)? layer->map.aux: -1.0); // uReverse
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+}
+
+
+void gl_context_change(void)
 {
+	//GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	GLfloat bggverts[] = {0.0, 0.0, 0.0, 0.1,0.1, 0.0, 0.1,0.1};
+	
+	if (g_fb.id == 0) {
+		DEBUG("First Context Change");
+		glActiveTexture(GL_TEXTURE0);
+		
+		//char *upscale_args[] = {;
+		if (!shader_init(&g_upscale_shader,V_PASSTHROUGH, F_NEAREST, (char*[]){"aPos", "uSize", "uFramebuffer", NULL}))
+			ABORT(1, "Couldn't create fb shader");
+		on_exit(shader_on_exit, &g_upscale_shader);
+
+		char *layer_args[] = {
+			"aPos","uFramebuffer", "uMap", "uMapSize", 
+			"uOffset", "uTiles", "uTileSize", "uTileRowSize", 
+			"uTileBits", "uPalette", "uClip", "uClamp", 
+			"uFlip", "uReverse", "uAux", NULL};
+		if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_LAYER, layer_args))
+			ABORT(1, "Couldn't create layer shader");
+		on_exit(shader_on_exit, &g_layer_shader);
+		tex_set(&g_vram_tex, NULL);
+		on_exit(tex_on_exit, &g_vram_tex);
+
+		
+
+		
+	}
+	DEBUG("Context change");
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	// create the frame buffer
-	glActiveTexture(GL_TEXTURE0);
-	//~ framebuffer_init(&g_fb, 256, 256);
-	//~ on_exit(framebuffer_on_exit, &g_fb);
-	layerpass_init();
-	upscale_init();
+	framebuffer_init(&g_fb, 256, 256);
+	glClearColor(0.498, 0.624 , 0.682, 1.0);
+
+	glDeleteBuffers(1, &g_vb);
+	glGenBuffers(1, &g_vb);
+	GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
+	glBindBuffer(GL_ARRAY_BUFFER, g_vb);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, bgverts, GL_STATIC_DRAW);
+	glVertexAttribPointer(g_upscale_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_upscale_shader.args[0]);
+	glVertexAttribPointer(g_layer_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_layer_shader.args[0]);
 	
 }
 
 
+
 void game_update(void)
 {
-	int r,c;
-	win_size(&r, &c);
-	//~ glClearColor(0.498, 0.0 , 0.682, 1.0);
-	//~ glClear(GL_COLOR_BUFFER_BIT);
-	//~ return;
-	static int once = 1;
-	if (once) {
-		bind_256_framebuffer();
-		glViewport(0, 0, 256, 144);
-		
-		glClearColor(0.498, 0.624 , 0.682, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
+	int w,h;
+	win_size(&w, &h);
 
-		layer_pre_render();
-		for (int i=0; i < MAX_LAYERS; ++i) {
-			if (layers[i].flags & LAYER_ON)
-				layer_render(&layers[i]);	
-		}
-		// upscale it
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glActiveTexture(GL_TEXTURE0);
-		//~ once = 0;
+	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.id);
+	glViewport(0, 0, 256, 144);
+	glUseProgram(g_layer_shader.id);
+	tex_set(&g_vram_tex, (uint8_t*)vram);
+	glUniform1i(g_layer_shader.args[1], 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	
+	for (int i=0; i < MAX_LAYERS; ++i) {
+		if (layers[i].flags & LAYER_ON)
+			layer_render(&layers[i]);	
 	}
-	bind_256_texture();
-	//~ glBindTexture(GL_TEXTURE_2D, g_fb.txid);
-	upscale_begin(r,c);
-	upscale_draw();
-	gl_error_check();
+	
+	// upscale it
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0,0,w,h);
+	
+	glActiveTexture(GL_TEXTURE0);
+
+	glBindTexture(GL_TEXTURE_2D, g_fb.tex.id);
+	glUseProgram(g_upscale_shader.id);
+	glUniform2f(g_upscale_shader.args[1], w, h);
+	glUniform1i(g_upscale_shader.args[2], 0);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	
+	//~ gl_error_check();
 	
 }
 
@@ -110,9 +170,7 @@ int main(int argc, char *argv[])
 	if (!win_init(256*4,144*4, event_callback))
 		ABORT(3, "win_init failed");
 	on_exit(win_on_exit, 0);
-	
-	game_init();
-	
+		
 	while(!(subproc_status(&g_subproc))) {
 		game_update();
 		win_update();

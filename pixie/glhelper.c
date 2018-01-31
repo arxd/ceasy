@@ -16,7 +16,7 @@ typedef struct s_Texture Texture;
 struct s_Texture {
 	GLuint id;
 	int w, h;
-	GLint internal_format;
+//	GLint internal_format;
 	GLenum format;
 	GLenum type;
 	//~ void *data;
@@ -24,9 +24,8 @@ struct s_Texture {
 
 typedef struct s_FrameBuffer FrameBuffer;
 struct s_FrameBuffer {
-	GLuint fbid;
-	GLuint txid;
-	int w, h;
+	GLuint id;
+	Texture tex;
 };
 
 int shader_init(Shader *self, const char *vert_src, const char *frag_src, char *args[]);
@@ -50,6 +49,8 @@ void framebuffer_on_exit(int status, void *arg);
 
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
+
 #include "util.c"
 
 void clear(GLfloat r, GLfloat g, GLfloat b)
@@ -71,7 +72,7 @@ void tex_set(Texture *self, void * pixels )
 		glGenTextures(1, &self->id);
 		DEBUG("Create texture %d", self->id);
 		glBindTexture(GL_TEXTURE_2D, self->id);
-		glTexImage2D(GL_TEXTURE_2D, 0, self->internal_format, self->w, self->h, 0, self->format, self->type,  pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, self->format, self->w, self->h, 0, self->format, self->type,  pixels);
 		gl_error_check();
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -197,40 +198,46 @@ int shader_init(Shader *self, const char *vert_src, const char *frag_src, char *
 	return 1;
 }
 
-
 int framebuffer_init(FrameBuffer *self, int w, int h)
 {
-	self->w = w;
-	self->h = h;
-	glGenFramebuffers(1, &self->fbid);
-	glBindFramebuffer(GL_FRAMEBUFFER, self->fbid);
-	glGenTextures(1, &self->txid);
-	glBindTexture(GL_TEXTURE_2D, self->txid);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self->w, self->h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	if (self->id) {// releaase the old framebuffer
+		glDeleteFramebuffers(1, &self->id);
+	} else { // this is the first time we are called
+		DEBUG("Create New Texture for framebuffer");
+		self->tex.w = w;
+		self->tex.h = h;
+		self->tex.format = GL_RGB;
+		self->tex.type = GL_UNSIGNED_BYTE;
+		tex_set(&self->tex, NULL);
+	}
+	glGenFramebuffers(1, &self->id);
+	glBindFramebuffer(GL_FRAMEBUFFER, self->id);
+	DEBUG("New FrameBuffer %d", self->id);
+	//~ glGenTextures(1, &self->txid);
+	//~ glBindTexture(GL_TEXTURE_2D, self->txid);
+	//~ glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, self->w, self->h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 		//~ printf("glTexImage2D : %d\n", glGetError());
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
+	//~ glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // only power of 2 textures can be wrapped 
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->txid, 0);
-	printf("BG Framebuffer Ready %d (%d)\n", glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE); 
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->tex.id, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		ABORT(1, "Framebuffer not ready %d", glCheckFramebufferStatus(GL_FRAMEBUFFER));
 	glBindFramebuffer(GL_FRAMEBUFFER, 0); // put the default framebuffer back
 	return 1;
 }
 
 void framebuffer_fini(FrameBuffer *self)
 {
-	if (self->txid) {
-		DEBUG("Delete fb texture %d", self->txid);
-		glDeleteTextures(1, &self->txid);
+	tex_fini(&self->tex);
+	if (self->id) {
+		DEBUG("Delete fb %d", self->id);
+		glDeleteFramebuffers(1, &self->id);
 	}
-	if (self->fbid) {
-		DEBUG("Delete fb %d", self->fbid);
-		glDeleteFramebuffers(1, &self->fbid);
-	}
-	
+	memset(self, 0, sizeof(FrameBuffer));
 }
 
 void framebuffer_on_exit(int status, void *arg)
