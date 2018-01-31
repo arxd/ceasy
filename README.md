@@ -1,13 +1,12 @@
-# ceasy
+# Ceasy
 
 A fun, simple library for playing with the C language through memory mapped IO.
 
-C is a very fun programming language because it is the lowest high-level language.
-It maintains a close connection with the CPU and memory.  
-There are few abstractions to get in the way.
+C is a very fun programming language because it is a very low high-level language.  It maintains a close connection with the CPU and memory, and the high level constructs have a fairly straight-forward mapping into the underlying assembly code.
 
-This is a collection of 'devices' that can be programmed easily with C by using [memory mapped IO](#memory-mapped-io).
-MMIO is usually seen in microcontrollers, and quickly abstracted away by operating systems.
+However, when just learning C for the first time, or trying to play around with the language, you are either stuck with <stdio.h> or confront large complicated interfaces of more capable libraries.  Neither of which is very fun.
+
+Ceasy is a collection of 'virtual devices'.  Toys that can be programmed easily with C by using [memory mapped IO](#memory-mapped-io) instead of traditional functional interfaces.
 
 Currently there is only one 'device', [Pixie](#pixie).
 
@@ -31,16 +30,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 ```
-
-# Memory mapped IO
-
-The Ceasy devices are controlled through memory mapped IO.  That means that special memory locations are given special meaning, and reading/writing of those memory locations can have special effects.  
-
-This is normally only seen in microcontrollers where device pins and other functions are mapped into memory.  Operating systems quickly cover this action up and expose function based interfaces instead.  So to make things more fun for C programmers, the devices in Ceasy are controlled through memory instead of function calls.
-
-For example, setting the second bit at address 0xf16e sets off fireworks.  And reading the byte at 0xc01d gives you the current temperature in Antarctica.
-
-
 
 # Pixie Documentation
 
@@ -79,6 +68,11 @@ from bottom `layers[0]` to top `layers[255]` every frame (60fps).  Each `struct 
   * `border` flags control what is displayed outside the bounds of the layers' edges.
   * `flags` that control other aspects of how the layer is rendered.
 
+By default, two layers are configured.
+
+  * `layers[0]` is configured as a 256x144 map of the pixels on the screen.  i.e. no tiles (1x1)
+  * `layers[1]` is configured as a 64x24 map of ASCII character tiles (4x6 pixels)
+
 ### layer.border
 
 If the layer size is smaller than the screen size, what happens to the on-screen pixels outside of the map?
@@ -99,16 +93,20 @@ This is a bitfield of flags that control how the layer is rendered.
   * LAYER_FLIPY : Flip the whole layer top to bottom.
   * LAYER_AUX : Does the layer [map](#tile-maps) use [auxillary data]?(#auxillary-data)
 
-
-
 ### Tiles
 
-A tile is a 2d array of pixels with any width or height (8x8) is nice.  Each pixel of the tile can be configured as 1bit, 2bits or 4bits.  Those pixel values index into a [palette](#palettes) to determine the color on the screen.  Which palette gets used is controlled by the [layer](#layer)
+A tile is a 2d array of pixels with any width or height.  1x1 tiles are special.  They are just one pixel big, so no tile data is needed.  Each pixel of the tile can be configured as 1bit, 2bits or 4bits.  Those pixel values index into a [palette](#palettes) to determine the color on the screen.  Which palette gets used is controlled by the [layer](#layer) and the [tile map auxillary data](#auxillary-data).
 
-### Palettes
-The computer screen needs RGB values, but we only hav
+The pixel data is stored sequencially packed into bytes from left to right, top to bottom.  For 1bit tiles 8 pixels can fit in one byte. 4 pixels for 2bit tiles, and 2 pixels for 8bit tiles.  Each row of the tile data always starts at the high end of a new byte.  So a 4x3 1bit tile would be three bytes `0xf0, 0xf0, 0xf0`.
 
 ### Tile Maps
+A tile map is a 2d array of bytes.  Each byte in the map indexes to one [tile](#tiles).  Which set of tiles gets indexed is configured in the [layer](#layers).  As a special case, if the [tiles](#tiles) configured by the layer are 1x1, then the tile-map byte indexes directly to the [palette](#palette).
+
+Tile maps can be any width or height, measured in tiles.  Their width in pixels would be `layer.map.w * layer.tiles.w`. 
+
+
+### Palettes
+The computer screen needs 24bit RGB values, but we only have 8bit entries in the tile maps, and a maximum of 4bits in a tile pixel.  
 
 #### Auxillary Data
 
@@ -129,7 +127,13 @@ Nothing is installable.  Copy libpixie.a pixie.h and pixie to appropriate places
 # gcc hello.c -o hello -Lpath/to/ceasy/pixie -lpixie 
 # path/to/ceasy/pixie/pixie hello
 ```
+# Memory mapped IO
 
+The Ceasy devices are controlled through [memory mapped IO](https://en.wikipedia.org/wiki/Memory-mapped_I/O).  That means that special memory locations are given special meaning, and reading/writing of those memory locations can have special effects.  
+
+This is normally only seen in microcontrollers where device pins and other functions are mapped into memory.  Operating systems quickly cover this action up and expose function based interfaces instead.  So to make things more fun for C programmers, the devices in Ceasy are controlled through memory instead of function calls.
+
+For example, setting the second bit at address 0xf16e sets off fireworks.  And reading the byte at 0xc01d gives you the current temperature in Antarctica.
 
 
 
