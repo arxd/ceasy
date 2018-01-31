@@ -14,21 +14,21 @@ test.c
 ```c
 #include <pixie.h>
 
-void frame_sync_inturrupt(int frame)
+void frame_sync_interrupt(int frame)
 {
-	if (input->hoverY < 144)
-		vram[256*input->hoverY + input->hoverX] = 1;
+    if (input->hoverY < 144)
+        vram[256*input->hoverY + input->hoverX] = 2;
 }
 
 int main(int argc, char *argv[])
 {
-	io_init(argv[0]); // setup the memory mapped IO
+    io_init(argv[0]); // setup the memory mapped IO
 
-	while (!(input->status & STATUS_CLOSE))
-		sleep(1); // just handle frame_sync and do nothing else
-	return 0;
+    printf_xy(27, 12, "Hello World!");
+
+    while (!(input->status & STATUS_CLOSE)); // just handle frame_sync and do nothing else
+    return 0;
 }
-
 ```
 
 Run it
