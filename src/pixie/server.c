@@ -79,11 +79,8 @@ void gl_context_change(void)
 		on_exit(shader_on_exit, &g_layer_shader);
 		tex_set(&g_vram_tex, NULL);
 		on_exit(tex_on_exit, &g_vram_tex);
-
-		
-
-		
 	}
+	
 	DEBUG("Context change");
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

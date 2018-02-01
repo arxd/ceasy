@@ -98,7 +98,7 @@ float tile_texel_2bit(float idx, vec2 subpix)
 
 void main()
 {
-	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y)) + uOffset;
+	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y)) - uOffset;
 	if (uReverse.x)
 		px.x = -px.x + uTileSize.x*uMapSize.x-1.0;
 	if (uReverse.y)

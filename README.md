@@ -21,7 +21,7 @@ Currently there is only one 'device', [Pixie](#pixie).
 
 Other planned devices include, RTS, FPS, Sports (hockey/soccer), Car racing, Board games, card games...
 
-## Pixie
+# Pixie
 
 This device gives you a 256x144 pixel screen to draw on.  You can get input from the mouse and keyboard, and play some sounds.  See [documentation](src/pixie/README.md) for details...
 
@@ -48,18 +48,15 @@ Ceasy uses the [SCons](http://scons.org/) build system.
 
 Just run `scons` from the root directory and it will build all libraries and demos.  The libraries, executables and header files will be installed locally in the `lib`, `bin`, and `include` directores respectivly.  The files can be manually installed from there into the system if needed.
 
-After compiling, you can look at some of the demos:
-
-  * `bin/pixie bin/hello`
-
-
+After compiling, you can look at some of the demos. `bin/pixie bin/hello`
 
 ## Compiling your program
 
 ```
-# gcc hello.c -o hello -Lpath/to/ceasy/pixie -lpixie 
-# path/to/ceasy/pixie/pixie hello
+# gcc hello.c -o hello -Ipath/to/ceasy/include -Lpath/to/ceasy/lib -lpixie 
+# path/to/ceasy/bin/pixie hello
 ```
+
 # Memory mapped IO
 
 The Ceasy devices are controlled through [memory mapped IO](https://en.wikipedia.org/wiki/Memory-mapped_I/O).  This means that special memory locations are given special meaning, and reading/writing of those memory locations can have special effects outside of your program.
