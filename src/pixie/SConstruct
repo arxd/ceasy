@@ -1,6 +1,9 @@
 from subprocess import Popen, PIPE
 
-env = Environment(LIBS=['GLESv2', 'glfw'])
+Import('*')
+if 'env' not in globals():
+	env = Environment()
+env.Append(LIBS=['GLESv2', 'glfw'])
 
 ccglsl = env.Program('ccglsl', ["shader_compiler.c", "util.c"] )
 
@@ -22,5 +25,4 @@ env.Install('#bin', pixie_exe)
 env.Install('#lib', pixie_lib)
 env.Install('#include', 'pixie.h')
 env.Install('#include', 'iomem.h')
-
 

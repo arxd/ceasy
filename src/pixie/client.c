@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <string.h>
 
 #include "pixie.h"
 #include "font4x6x1.h"
@@ -39,61 +40,33 @@ void palette_init(int addr, int num, uint32_t *data)
 	}
 }
 
-void tiles_load8(int addr, int words, uint8_t *data)
+void copy8(uint8_t *dest, uint8_t *src, int words)
 {
-	for (int i = 0; i < words; ++i )
-		vram[addr + i] = data? data[i] : 0;
+	memcpy(dest, src, words);
+	//~ while(words--)
+		//~ *dest++ = *src++;
 }
 
-void tiles_load16(int addr, int words, uint16_t *data)
+void copy16(uint8_t *dest, uint16_t *src, int words)
 {
-	for (int i = 0; i < words; ++i ) {
-		vram[addr + i*2 + 0] = data? ((data[i]>>8)&0xFF) : 0;
-		vram[addr + i*2 + 1] = data? (data[i]&0xFF) : 0;
+	while (words--) {
+		*(dest++) = ((*src)>>8)&0xFF;
+		*(dest++) = ((*src)>>0)&0xFF;
+		++src;
 	}
 }
 
-void tiles_load32(int addr, int words, uint32_t *data)
+void copy32(uint8_t *dest, uint32_t *src, int words)
 {
-	for (int i = 0; i < words; ++i ) {
-		vram[addr + i*4 + 0] = data? ((data[i]>>24)&0xFF) : 0;
-		vram[addr + i*4 + 1] = data? ((data[i]>>16)&0xFF) : 0;
-		vram[addr + i*4 + 2] = data? ((data[i]>>8)&0xFF) : 0;
-		vram[addr + i*4 + 3] = data? (data[i]&0xFF) : 0;
+	while (words--) {
+		*(dest++) = ((*src)>>24)&0xFF;
+		*(dest++) = ((*src)>>16)&0xFF;
+		*(dest++) = ((*src)>>8)&0xFF;
+		*(dest++) = ((*src)>>0)&0xFF;
+		++src;
 	}
 }
 
-void tiles_init(Tiles *self, int addr, int w, int h, int b)
-{
-	self->addr = (uint16_t)addr;
-	self->w = (uint16_t)w;
-	self->h = (uint16_t)h;
-	self->bits = (b == 2 || b == 4)? b : 1;
-	self->num_tiles = 0;
-	int rowbits = self->w * self->bits;
-	self->row_bytes = (rowbits/8) + !!(rowbits%8);
-}
-
-void tiles_init_load8(Tiles *self, int addr, int w, int h, int b, int num, uint8_t *data)
-{
-	tiles_init(self, addr, w, h, b);
-	self->num_tiles = num-1;
-	tiles_load8(self->addr, self->row_bytes * self->h * (self->num_tiles+1), data);
-}
-
-void tiles_init_load16(Tiles *self, int addr, int w, int h, int b, int num, uint16_t *data)
-{
-	tiles_init(self, addr, w, h, b);
-	self->num_tiles = num-1;
-	tiles_load16(self->addr, (self->row_bytes/2) * self->h * (self->num_tiles+1), data);
-}
-
-void tiles_init_load32(Tiles *self, int addr, int w, int h, int b, int num, uint32_t *data)
-{
-	tiles_init(self, addr, w, h, b);
-	self->num_tiles = num-1;
-	tiles_load32(self->addr, (self->row_bytes/4) * self->h * (self->num_tiles+1), data);
-}
 
 double now(void)
 {
@@ -130,28 +103,40 @@ void io_init(const char *shmid_str)
 	
 	signal(SIGUSR1, sig_handler);
 	
-	palette_init(0x9000, 6, (uint32_t[]) {
+	uint32_t pal[256] = {
 		0xdddddd00,
 		0x00000080,
 		0xff5555ff,
 		0x55ff55ff,
 		0x5555ffff,
 		0xffff00ff,
-		0x444444ff});
-
+		0x444444ff};
+	for (int p =7; p < 256; ++p)
+		pal[p] = 0xFF00FFFF;
 	
-	// Layer 0
-	map_init(&layers[0].map, 0x0000, 256, 144, 0);
-	layers[0].palette = 0x9000;
-	tiles_init(&layers[0].tiles, 0x0000, 1, 1, 1);
-	layers[0].flags = LAYER_ON;
+	copy32(vram + 0x9000, pal, 256);
 	
-	//Layer 1
-	map_init(&layers[1].map, 0x9700, 64, 24, 0);
-	layers[1].map.aux = 0xf300;
-	layers[1].palette = 0x9000;
-	tiles_init_load8(&layers[1].tiles, 0x9400, 4, 6, 1, 128, FONT4x6x1);
-	layers[1].flags = LAYER_ON | LAYER_AUX;
+	// Layer 0 is a direct pixel map of the whole screen
+	layers[0] = (Layer) {
+		.palette = 0x9000,
+		.map.addr = 0x0000,
+		.map.w = 256, .map.h = 144,
+		.flags = LAYER_ON,
+		.tiles.w = 1, .tiles.h = 1,
+	};
+	
+	//Layer 1 is a map of ACII tiles
+	copy8(vram + 0x9400, FONT4x6x1, 128*6);
+	layers[1] = (Layer) {
+		.palette = 0x9000,
+		.map.addr = 0x9700,
+		.map.aux = 0xA300,
+		.tiles.addr = 0x9400,
+		.map.w = 64, .map.h = 24,
+		.tiles.w = 4, .tiles.h = 6, .tiles.bits = 1,
+		.tiles.row_bytes = 1, .tiles.num_tiles = 128-1,
+		.flags = LAYER_ON | LAYER_AUX,
+	};
 
 }
 

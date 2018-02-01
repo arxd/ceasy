@@ -36,14 +36,14 @@ Texture g_vram_tex = {0, 512, 512, GL_ALPHA, GL_UNSIGNED_BYTE};
 
 void layer_render(Layer *layer)
 {	
-	glUniform1f(g_layer_shader.args[2], layer->map.addr); // uMap
+	glUniform1f(g_layer_shader.args[2], layer->map.addr&(VRAM_SIZE-1)); // uMap
 	glUniform2f(g_layer_shader.args[3], layer->map.w, layer->map.h);//uMapSize
 	glUniform2f(g_layer_shader.args[4], layer->map.x, layer->map.y);//uOffset
-	glUniform1f(g_layer_shader.args[5], layer->tiles.addr);//uTiles
+	glUniform1f(g_layer_shader.args[5], layer->tiles.addr&(VRAM_SIZE-1));//uTiles
 	glUniform2f(g_layer_shader.args[6], layer->tiles.w, layer->tiles.h);//uTileSize
 	glUniform1f(g_layer_shader.args[7], layer->tiles.row_bytes);//uTileRowSize
 	glUniform1i(g_layer_shader.args[8], layer->tiles.bits);//uTileBits
-	glUniform1f(g_layer_shader.args[9], layer->palette);//uPalette	
+	glUniform1f(g_layer_shader.args[9], layer->palette&(VRAM_SIZE-1));//uPalette	
 	glUniform2i(g_layer_shader.args[10], ((layer->border>>4)&0x7) == BDR_CLIP, ((layer->border)&0x7)  == BDR_CLIP); // uClip
 	glUniform2i(g_layer_shader.args[11], (layer->border>>4)&0x1, layer->border&1); // uClamp
 	glUniform2i(g_layer_shader.args[12], ((layer->border>>4)&0x7)  == BDR_FLIP, ((layer->border)&0x7)  == BDR_FLIP); // uFlip

@@ -16,12 +16,9 @@ void io_init(const char *shmid_str);
 void printf_xy(int x, int y, const char *fmt, ...);
 void frame_sync_interrupt(int frame) __attribute__((weak));
 double now(void);
-void tiles_init_load32(Tiles *self, int addr, int w, int h, int b, int num, uint32_t *data);
-void tiles_init_load16(Tiles *self, int addr, int w, int h, int b, int num, uint16_t *data);
-void tiles_init_load8(Tiles *self, int addr, int w, int h, int b, int num, uint8_t *data);
-void tiles_init(Tiles *self, int addr, int w, int h, int b);
-void palette_init(int addr, int num, uint32_t *data);
-void map_init(Map *self, int addr, int w, int h, uint8_t *data);
+void copy32(uint8_t *dest, uint32_t *src, int words);
+void copy16(uint8_t *dest, uint16_t *src, int words);
+void copy8(uint8_t *dest, uint8_t *src, int words);
 
 #endif
 
