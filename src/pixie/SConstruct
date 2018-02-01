@@ -14,10 +14,6 @@ def shader_compile(target, source, env):
 shaders = env.Command('shaders.h', 'shaders.glsl', shader_compile)
 env.Depends(shaders, ccglsl)
 
-#~ shader_h = env.Command('shaders.h', 'shaders.glsl',  './ccglsl $SOURCE $TARGET')
-
-#~ env.GLSL("shaders.h", "shaders.glsl")
-
 pixie_exe = env.Program('pixie', ['server.c', 'util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
 
 pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c'])
