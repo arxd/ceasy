@@ -88,8 +88,10 @@ int main(int argc, char*argv[])
 		fclose(fp);
 		ABORT(2, "Couldn't open %s for writing", argv[2]);
 	}
+	
 	if (!glfwInit())
-		return 0;
+		ABORT(1, "GLFW Init failed");
+	
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);

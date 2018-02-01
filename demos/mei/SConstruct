@@ -1,0 +1,6 @@
+NAME="mei"
+
+env = Environment(LIBS=["pixie", 'm'], LIBPATH=['#lib'], CPPPATH=['#include'])
+prog = env.Program(NAME, ['main.c'])
+env.Depends(prog, File('#include/pixie.h'))
+inst = env.Install('#bin', prog)

@@ -1,0 +1,30 @@
+from subprocess import Popen, PIPE
+
+env = Environment(LIBS=['GLESv2', 'glfw'])
+
+ccglsl = env.Program('ccglsl', ["shader_compiler.c", "util.c"] )
+
+def shader_compile(target, source, env):
+	prog = ['./'+str(ccglsl[0]), str(source[0]), str(target[0])]
+	proc = Popen(prog, stdout=PIPE, stderr=PIPE )
+	out,err = proc.communicate()
+	print(out)
+	return err
+
+shaders = env.Command('shaders.h', 'shaders.glsl', shader_compile)
+env.Depends(shaders, ccglsl)
+
+#~ shader_h = env.Command('shaders.h', 'shaders.glsl',  './ccglsl $SOURCE $TARGET')
+
+#~ env.GLSL("shaders.h", "shaders.glsl")
+
+pixie_exe = env.Program('pixie', ['server.c', 'util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
+
+pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c'])
+
+env.Install('#bin', pixie_exe)
+env.Install('#lib', pixie_lib)
+env.Install('#include', 'pixie.h')
+env.Install('#include', 'iomem.h')
+
+

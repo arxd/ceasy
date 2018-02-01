@@ -17,8 +17,9 @@ Then, instead of executing your program directly, you execute it indirectly on o
   `pixie a.out`.  
 
 
-
 Currently there is only one 'device', [Pixie](#pixie).
+
+Other planned devices include, RTS, FPS, Sports (hockey/soccer), Car racing, Board games, card games...
 
 ## Pixie
 
@@ -139,9 +140,9 @@ Nothing is installable.  Copy libpixie.a pixie.h and pixie to appropriate places
 ```
 # Memory mapped IO
 
-The Ceasy devices are controlled through [memory mapped IO](https://en.wikipedia.org/wiki/Memory-mapped_I/O).  That means that special memory locations are given special meaning, and reading/writing of those memory locations can have special effects.  
+The Ceasy devices are controlled through [memory mapped IO](https://en.wikipedia.org/wiki/Memory-mapped_I/O).  This means that special memory locations are given special meaning, and reading/writing of those memory locations can have special effects outside of your program.
 
-This is normally only seen in microcontrollers where device pins and other functions are mapped into memory.  Operating systems quickly cover this action up and expose function based interfaces instead.  So to make things more fun for C programmers, the devices in Ceasy are controlled through memory instead of function calls.
+This is normally only seen in microcontrollers where device pins and other functions are mapped into memory.  Operating systems quickly cover this up and expose function based interfaces instead.  So to make things more fun for C programmers, the devices in Ceasy are controlled through memory instead of function calls.
 
 For example, setting the second bit at address 0xf16e sets off fireworks.  And reading the byte at 0xc01d gives you the current temperature in Antarctica.
 

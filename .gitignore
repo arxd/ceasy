@@ -1,2 +1,6 @@
-*.o
-*/build
+.*
+!/.gitignore
+build
+lib
+include
+bin

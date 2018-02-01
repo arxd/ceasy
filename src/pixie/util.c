@@ -20,6 +20,7 @@ void _debug(char *file, int line, const char *fmt, ...);
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 void _abort(int code, char *file, int line, const char *fmt, ...)
 {

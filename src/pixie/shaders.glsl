@@ -83,6 +83,7 @@ float tile_texel_1bit(float idx, vec2 subpix)
 
 float tile_texel_2bit(float idx, vec2 subpix)
 {
+	int t;
 	float byte = memi(uTiles + (idx*uTileSize.y + subpix.y)*uTileRowSize + floor(subpix.x/4.0));
 	float bit = mod(subpix.x, 4.0);
 	if (bit == 0.0)
