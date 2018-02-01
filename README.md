@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     io_init(argv[0]); // setup the memory mapped IO
 
     printf_xy(27, 12, "Hello World!"); // print some text
-    vram[256*42 + 101] = 1;  // set pixel (101, 42)
+    vram[256*42 + 101] = 5;  // set pixel (101, 42) to color #5 (yellow)
 
     while (!(input->status & STATUS_CLOSE)); // wait for the window to close
     return 0;
@@ -44,9 +44,15 @@ int main(int argc, char *argv[])
 
 # Compiling Ceasy
 
-Just run `make` from the root directory and it will build subdirectories.
+Ceasy uses the [SCons](http://scons.org/) build system.  
 
-Nothing is installable.  Copy libpixie.a pixie.h and pixie to appropriate places if you want.
+Just run `scons` from the root directory and it will build all libraries and demos.  The libraries, executables and header files will be installed locally in the `lib`, `bin`, and `include` directores respectivly.  The files can be manually installed from there into the system if needed.
+
+After compiling, you can look at some of the demos:
+
+  * `bin/pixie bin/hello`
+
+
 
 ## Compiling your program
 
