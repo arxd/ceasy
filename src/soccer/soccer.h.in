@@ -1,0 +1,15 @@
+#ifndef PIXIE_H
+#define PIXIE_H
+
+@include font4x6x1.c
+@include util.c
+@include ../shared/input.h
+@include iomem.h
+@include client.c
+
+#ifdef PIXIE_NOLIB
+#undef PIXIE_NOLIB
+#endif
+
+#endif
+

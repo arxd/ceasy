@@ -1,5 +1,5 @@
 #define PIXIE_NOLIB
-#include <pixie.h>
+#include "pixie.h"
 
 int main(int argc, char *argv[])
 {

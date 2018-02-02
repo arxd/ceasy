@@ -22,7 +22,6 @@ const char *v2str(Vec2 v0);
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
-#include "pixie.h"
 
 Vec2 v0(void)
 {

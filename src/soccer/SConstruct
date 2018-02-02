@@ -1,0 +1,19 @@
+# soccer
+
+Import('*')
+if 'env' not in globals():
+	env = Environment()
+
+env.Append(LIBS=['GLESv2', 'glfw', 'util'], CPPPATH='#src/shared')
+env.HeaderTmpl('soccer')
+env.GLSL('shaders')
+
+exe = env.Program('soccer', ['server.c', 'util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
+#~ pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c', 'font4x6x1.c'])
+Depends(exe, shared_utils)
+
+env.Install('#bin', exe)
+#~ env.Install('#lib', pixie_lib)
+env.Install('#include', 'soccer.h')
+
+
