@@ -16,7 +16,8 @@ void _abort(int code, char *file, int line, const char *fmt, ...) __attribute__(
 void _debug(char *file, int line, const char *fmt, ...);
 
 
-#if __INCLUDE_LEVEL__ == 0
+#if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

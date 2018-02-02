@@ -1,11 +1,33 @@
 from subprocess import Popen, PIPE
+import re
 
 Import('*')
 if 'env' not in globals():
 	env = Environment()
-env.Append(LIBS=['GLESv2', 'glfw'])
 
-ccglsl = env.Program('ccglsl', ["shader_compiler.c", "util.c"] )
+def htmpl_file_scan(node, env, path):
+	contents = node.get_text_contents()
+	dir = str(node.get_dir())
+	includes = [dir+'/'+i for i in re.compile(r'^@include\s+(\S+)$', re.M).findall(contents)]
+	#~ print("SCAN: %s > %s"%(node, includes))
+	return env.File(includes)
+
+def header_template_emitter(target, source, env):
+	source += re.compile(r'^@include\s+(\S+)$', re.M).findall(source[0].get_text_contents())
+	#~ print("EMIT: %s"%map(str, source))
+	return (target, source)
+	
+def header_template(target, source, env):
+	#~ print("BUILD: %s"%source[0])
+	src = open(str(source[0]))
+	dest = open(str(target[0]), 'w')
+	for line in src:
+		if line.startswith("@"):
+			with open("{}/{}".format(source[0].get_dir(), line[8:].strip())) as inc:
+				dest.write(inc.read())
+		else:
+			dest.write(line)
+	return None
 
 def shader_compile(target, source, env):
 	prog = ['./'+str(ccglsl[0]), str(source[0]), str(target[0])]
@@ -14,15 +36,28 @@ def shader_compile(target, source, env):
 	print(out)
 	return err
 
+env.Append(BUILDERS = {'HeaderTmpl' : Builder(
+	action = header_template,
+	suffix = '.h',
+	src_suffix = '.h.in',
+	source_scanner =  Scanner(function = htmpl_file_scan, skeys = ['.in.h']),
+	emitter = header_template_emitter)})
+
+env.Append(LIBS=['GLESv2', 'glfw'])
+
+ccglsl = env.Program('ccglsl', ["shader_compiler.c", "util.c"] )
 shaders = env.Command('shaders.h', 'shaders.glsl', shader_compile)
 env.Depends(shaders, ccglsl)
 
+#~ headers = env.Command('pixie.h', 'pixie.h.in', header_template, emitter=header_template_emitter)
+#~ env.Command('pixie.h', 'pixie.h.in', header_template)
+env.HeaderTmpl('pixie')
+
 pixie_exe = env.Program('pixie', ['server.c', 'util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
 
-pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c'])
+pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c', 'font4x6x1.c'])
 
 env.Install('#bin', pixie_exe)
 env.Install('#lib', pixie_lib)
 env.Install('#include', 'pixie.h')
-env.Install('#include', 'iomem.h')
 

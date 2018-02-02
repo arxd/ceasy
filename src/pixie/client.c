@@ -1,44 +1,49 @@
 #ifndef CLIENT_C
 #define CLIENT_C
 
-#if __INCLUDE_LEVEL__ == 0
+#ifndef IOMEM_H
+#include "iomem.h"
+#endif
 
+typedef void FrameSyncHandler(int);
+
+extern IOMem *io;
+extern uint8_t *vram;
+extern Layer *layers;
+extern volatile Input *input;
+
+void io_init(const char *shmid_str);
+void printf_xy(int x, int y, const char *fmt, ...);
+void on_frame_sync(FrameSyncHandler *handler);
+double now(void);
+void copy32(uint8_t *dest, uint32_t *src, int words);
+void copy16(uint8_t *dest, uint16_t *src, int words);
+void copy8(uint8_t *dest, uint8_t *src, int words);
+
+#if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/shm.h>
 
-#include "pixie.h"
-#include "font4x6x1.h"
+#ifndef FONT4x6x1_C
+#include "font4x6x1.c"
+#endif
+
+#ifndef UTIL_C
 #include "util.c"
+#endif
 
 IOMem *io;
 uint8_t *vram;
 Layer *layers;
 volatile Input *input;
-
-void map_init(Map *self, int addr, int w, int h, uint8_t *data)
-{
-	self->addr = (uint16_t)addr;
-	self->aux = self->addr;
-	self->w = (uint16_t)w;
-	self->h = (uint16_t)h;
-	self->x = 0;
-	self->y = 0;
-	for (int i=0; i < self->w * self->h; ++i)
-		vram[self->addr + i] = data? data[i] : 0;
-}
-
-void palette_init(int addr, int num, uint32_t *data)
-{
-	for (int i=0; i < num; ++i) {
-		vram[addr + i*4 + 0] = data? ((data[i]>>24)&0xFF) : 0;
-		vram[addr + i*4 + 1] = data? ((data[i]>>16)&0xFF) : 0;
-		vram[addr + i*4 + 2] = data? ((data[i]>>8)&0xFF) : 0;
-		vram[addr + i*4 + 3] = data? (data[i]&0xFF) : 0;
-	}
-}
 
 void copy8(uint8_t *dest, uint8_t *src, int words)
 {
@@ -78,14 +83,19 @@ double now(void)
 	return (t1.tv_sec - t0.tv_sec) + 1.0e-9*( t1.tv_nsec - t0.tv_nsec);
 }
 
-void frame_sync_interrupt(int frame)
-{
-}
+FrameSyncHandler *g_fs_handler;
 
 void sig_handler(int sig) {
 	static int frame = 0;
-	frame_sync_interrupt(frame++);
+	if (g_fs_handler)
+		g_fs_handler(frame++);
 }
+
+void on_frame_sync(FrameSyncHandler *handler)
+{
+	g_fs_handler = handler;
+}
+
 
 void io_init(const char *shmid_str)
 {

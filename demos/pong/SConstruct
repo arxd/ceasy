@@ -1,6 +1,8 @@
 NAME="pong"
-
-env = Environment(LIBS=["pixie", 'm'], LIBPATH=['#lib'], CPPPATH=['#include'])
-prog = env.Program(NAME, ['main.c'])
+Import("*")
+if 'env' not in globals():
+	env = Environment()
+env.Append(LIBS=['m'], CPPPATH=['#include'])
+prog = env.Program(NAME, ['main.c', 'vec2.c'])
 env.Depends(prog, File('#include/pixie.h'))
 inst = env.Install('#bin', prog)

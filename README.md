@@ -28,18 +28,25 @@ This device gives you a 256x144 pixel screen to draw on.  You can get input from
 ### hello.c
 
 ```c
-#include <pixie.h>
+#define PIXIE_NOLIB
+#include "pixie.h"
 
 int main(int argc, char *argv[])
 {
     io_init(argv[0]); // setup the memory mapped IO
 
-    printf_xy(27, 12, "Hello World!"); // print some text
-    vram[256*42 + 101] = 5;  // set pixel (101, 42) to color #5 (yellow)
+    printf_xy(27, 11, "Hello World!"); // print some text
+    vram[256*68 + 129] = 5;  // set pixel (101, 42) to color #5 (yellow)
 
     while (!(input->status & STATUS_CLOSE)); // wait for the window to close
     return 0;
 }
+```
+Copy pixie.h into the directory as hello.c.  Or else, add `-Ipath/to/ceasy/include` when compiling.
+
+```
+# gcc hello.c -o hello
+# path/to/ceasy/bin/pixie hello
 ```
 
 # Compiling Ceasy
@@ -50,12 +57,6 @@ Just run `scons` from the root directory and it will build all libraries and dem
 
 After compiling, you can look at some of the demos. `bin/pixie bin/hello`
 
-## Compiling your program
-
-```
-# gcc hello.c -o hello -Ipath/to/ceasy/include -Lpath/to/ceasy/lib -lpixie 
-# path/to/ceasy/bin/pixie hello
-```
 
 # Memory mapped IO
 

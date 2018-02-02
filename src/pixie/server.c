@@ -145,6 +145,7 @@ int main(int argc, char *argv[])
 	layers = io->layers;
 	vram = io->vram;
 	input = &io->input;
+	DEBUG("Zero Mem");
 	memset(io, 0, sizeof(IOMem));
 
 	char *prog = argv[1];
