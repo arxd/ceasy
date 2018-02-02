@@ -1,14 +1,13 @@
-#ifndef PIXIE_H
-#define PIXIE_H
+#ifndef HOCKEY_H
+#define HOCKEY_H
 
-@include font4x6x1.c
 @include ../shared/util.c
 @include ../shared/input.h
 @include iomem.h
 @include client.c
 
-#ifdef PIXIE_NOLIB
-#undef PIXIE_NOLIB
+#ifdef HOCKEY_NOLIB
+#undef HOCKEY_NOLIB
 #endif
 
 #endif

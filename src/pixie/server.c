@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
@@ -9,6 +11,7 @@
 #include "glhelper.c"
 #include "subproc.c"
 #include "share.c"
+
 #include "iomem.h"
 #include "shaders.h"
 

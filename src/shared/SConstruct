@@ -1,13 +1,8 @@
 #shared
 
-Import('*')
-if 'env' not in globals():
-	env = Environment()
+Import('env')
+env = env.Clone()
 
-#~ env.Append(LIBS=['GLESv2', 'glfw'])
-#~ env.HeaderTmpl('soccer')
-#~ env.GLSL('shaders')
+shared_utils = env.Library('shared_utils', ['util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
 
-lib = env.Library('util', ['util.c', 'share.c', 'glhelper.c', 'window_glfw.c', 'subproc.c'])
-
-Return(lib)
+Return('shared_utils')

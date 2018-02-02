@@ -1,8 +1,6 @@
 NAME="mei"
 Import("*")
-if 'env' not in globals():
-	env = Environment()
-env.Append(CPPPATH=['#include'])
+env = env.Clone(CPPPATH=['#include'])
 prog = env.Program(NAME, ['main.c'])
 env.Depends(prog, File('#include/pixie.h'))
 inst = env.Install('#bin', prog)

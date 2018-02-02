@@ -1,0 +1,15 @@
+# hockey
+
+Import('env shared_utils')
+env = env.Clone(CPPPATH='#src/shared')
+
+env.HeaderTmpl('hockey')
+env.GLSL('shaders')
+
+exe = env.Program('hockey', ['server.c'], LIBS=[shared_utils, 'GLESv2', 'glfw' ])
+#~ env.Depends(exe, shared_utils)
+
+env.Install('#bin', exe)
+env.Install('#include', 'hockey.h')
+
+
