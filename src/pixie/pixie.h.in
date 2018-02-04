@@ -1,6 +1,10 @@
 #ifndef PIXIE_H
 #define PIXIE_H
 
+#ifdef PIXIE_NOLIB
+#define NOLIB
+#endif
+
 @include font4x6x1.c
 @include ../shared/util.c
 @include ../shared/input.h
@@ -9,6 +13,7 @@
 
 #ifdef PIXIE_NOLIB
 #undef PIXIE_NOLIB
+#undef NOLIB
 #endif
 
 #endif

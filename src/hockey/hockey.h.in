@@ -1,6 +1,11 @@
 #ifndef HOCKEY_H
 #define HOCKEY_H
 
+#ifdef HOCKEY_NOLIB
+#define NOLIB
+#endif
+
+@include vec2.c
 @include ../shared/util.c
 @include ../shared/input.h
 @include iomem.h
@@ -8,6 +13,7 @@
 
 #ifdef HOCKEY_NOLIB
 #undef HOCKEY_NOLIB
+#define NOLIB
 #endif
 
 #endif

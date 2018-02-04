@@ -1,74 +1,85 @@
 #ifndef IOMEM_H
 #define IOMEM_H
 
+#define NUM_PLAYERS 4
+#define NUM_GOALS 2
+#define MAX_STARS 16
+
 #include <stdint.h>
 
 #ifndef INPUT_H
 #include "input.h"
 #endif
 
-#define BDR_CLIP (0)
-#define BDR_CLAMP (1)
-#define BDR_REPEAT (2)
-#define BDR_FLIP (3)
+#ifndef VEC2_C
+#include "vec2.c"
+#endif
 
-#define LAYER_ON (1)
-#define LAYER_FLIPX (2)
-#define LAYER_FLIPY (4)
-#define LAYER_AUX (8)
-
-#define MAX_LAYERS 256
-#define VRAM_SIZE 0x40000
-
-
-
-typedef struct s_Voice Voice;
-struct s_Voice{
-	uint8_t volume;
-	uint8_t instrument;
-	uint16_t pitch;
-	uint16_t param;	
+typedef struct s_Player Player;
+struct s_Player {
+	// These are set by the Client
+	float set_thruster; // out: desired thruster angle
+	float thrust; // out: amout of thrust to produce
+	float set_grabber; // out: desired grabber angle
+	float grab; // out: amout of grab to produce
+	
+	// These are set by the server
+	float cur_thruster; // in: actual thruster angle (degrees)
+	float cur_grabber; // in: actual grabber angle (degrees)
+	Vec2 xy;  // in: current position
+	Vec2 v;   // in: current velocity
+	float r; // in: radius
+	float m; // in: mass
+	float energy; // in: energy
 };
 
-
-
-typedef struct s_Color Color;
-struct s_Color {
-	uint8_t r,g,b,a;
+typedef struct s_Puck Puck;
+struct s_Puck {
+	Vec2 xy;  // in: current position
+	Vec2 v;   // in: current velocity
+	float r; // in: radius
+	float m; // in: mass
 };
 
-typedef struct s_Map Map;
-struct s_Map {
-	uint32_t addr;	///< Address of the map data
-	uint16_t aux;	///< Address of the auxillary map data (if equal to addr then not used)
-	uint16_t w,h;	///< Width/Height of the layer map (in tiles)
-	int16_t x,y;	///< Signed screen offset in pixels
+typedef struct s_Goal Goal;
+struct s_Goal {
+	Vec2 xy;
+	float r_goal; // radius of goal area
+	float rmin; // radius of major hurt circle
+	float rmax; // max bounds
+};
+typedef struct s_Circle Circle;
+struct s_Circle {
+	Vec2 xy;
+	float r;
 };
 
-typedef struct s_Tiles Tiles;
-struct s_Tiles {
-	uint32_t addr;		///< Address of the tile data
-	uint16_t w,h;		///< Width / Height of one tile in pixels
-	uint16_t row_bytes;	///< Number of bytes to encode one row of a tile
-	uint8_t bits;		///< Number of bits per pixel (1, 2, 4)
-	uint8_t num_tiles;	///< Number of tiles - 1 (helpful information) (max 256)
+typedef struct s_Rink Rink;
+struct s_Rink {
+	float w, h;
+	float r; // corner radius
+	Goal goals[NUM_GOALS];
+	int n_stars;
+	Circle stars[MAX_STARS];
+	
+	//~ int n_powerup;
+	//~ Circle powerups[MAX_POWERUPS];
 };
-
-typedef struct s_Layer Layer;
-struct s_Layer {
-	Map map;
-	Tiles tiles;
-	uint32_t palette;	///< Address of the palette data
-	uint8_t border;		///< How tiles outside the map are handled.  x(high nibble) y(low nibble)
-	uint8_t flags;		
+	
+	
+typedef struct s_Team Team;
+struct s_Team {
+	Player player[NUM_PLAYERS];
 };
 
 typedef struct s_IOMem IOMem;
 struct s_IOMem {
-	uint8_t vram[VRAM_SIZE]; // 512x512
+	uint32_t state;
+	Team us;
+	Team them;
+	Puck puck;
 	Input input;
-	Voice voices[32];
-	Layer layers[MAX_LAYERS];
+	Rink rink;
 };
 
 #endif

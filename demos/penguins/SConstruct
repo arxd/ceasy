@@ -1,0 +1,6 @@
+NAME="penguins"
+Import("env")
+env = env.Clone(CPPPATH=['#include'], LIBS=['m'])
+prog = env.Program(NAME, ['main.c'])
+env.Depends(prog, File('#include/hockey.h'))
+inst = env.Install('#bin', prog)

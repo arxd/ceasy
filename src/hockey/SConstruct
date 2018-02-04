@@ -6,7 +6,7 @@ env = env.Clone(CPPPATH='#src/shared')
 env.HeaderTmpl('hockey')
 env.GLSL('shaders')
 
-exe = env.Program('hockey', ['server.c'], LIBS=[shared_utils, 'GLESv2', 'glfw' ])
+exe = env.Program('hockey', ['server.c', 'vec2.c'], LIBS=[shared_utils, 'GLESv2', 'glfw', 'm'])
 #~ env.Depends(exe, shared_utils)
 
 env.Install('#bin', exe)
