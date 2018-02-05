@@ -44,7 +44,7 @@ struct s_Puck {
 typedef struct s_Goal Goal;
 struct s_Goal {
 	Vec2 xy;
-	float r_goal; // radius of goal area
+	float rgoal; // radius of goal area
 	float rmin; // radius of major hurt circle
 	float rmax; // max bounds
 };

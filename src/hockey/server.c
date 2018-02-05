@@ -39,23 +39,23 @@ GLuint g_rect_vb = 0;
 
 int g_w, g_h;
 
-void rectangle_render(Vec2 pos, Vec2 scale, float r, float g, float b)
+void rectangle_render(Vec2 pos, Vec2 scale, Vec3 color)
 {
 	glUniform2f(g_rect_shader.args[1], g_w, g_h);
-	glUniform2f(g_rect_shader.args[2], scale.x, scale.y);
-	glUniform2f(g_rect_shader.args[3], pos.x, pos.y);
-	glUniform3f(g_rect_shader.args[4], r, g, b);
+	glUniform2f(g_rect_shader.args[2], pos.x, pos.y);
+	glUniform2f(g_rect_shader.args[3], scale.x, scale.y);
+	glUniform3fv(g_rect_shader.args[4], 1, color.rgb);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 }
 
-void circle_render(Vec2 pos, float r1, float r2, float r, float g, float b)
+void circle_render(Vec2 pos, float r1, float r2, Vec3 color)
 {	
 	glUniform2f(g_circle_shader.args[1], g_w, g_h);
 	glUniform2f(g_circle_shader.args[2], pos.x, pos.y);
 	glUniform2f(g_circle_shader.args[3], r1, r1);
 	glUniform1f(g_circle_shader.args[4], r2);	
-	glUniform3f(g_circle_shader.args[5], r, g, b);
+	glUniform3fv(g_circle_shader.args[5], 1, color.rgb);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 8);
 }
 
@@ -99,7 +99,7 @@ void gl_context_change(void)
 	}
 	
 	DEBUG("Context change");
-	glClearColor(0.498, 0.624 , 0.682, 1.0);
+	glClearColor(0.2, 0.2, 0.2, 1.0);
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -140,7 +140,50 @@ void gl_context_change(void)
 
 }
 
-
+void draw_rink(Vec2 pos, float scale)
+{
+	Rink *rink = &io->rink;
+	
+	float w = scale * io->rink.w;
+	float h = scale * io->rink.h;
+	float r = scale * io->rink.r;
+	
+	Vec3 rink_color = v3(0.698, 0.824 , 0.882);
+	Vec3 goal_color = v3(0.4, 0.1, 0.4);
+	Vec3 goal_warn = v3(0.498, 0.624 , 0.682);
+	Vec3 star_color = v3(0.2, 0.2 , 0.2);
+	
+	glUseProgram(g_rect_shader.id);
+	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
+	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_rect_shader.args[0]);
+	rectangle_render(v2(pos.x+r, pos.y), v2(w - 2.0*r, h), rink_color);
+	rectangle_render(v2(pos.x, pos.y+r), v2(w, h - 2.0*r), rink_color);
+	// corners
+	glUseProgram(g_circle_shader.id);
+	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
+	glVertexAttribPointer(g_circle_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_circle_shader.args[0]);
+	circle_render(v2(pos.x+r, pos.y+r), r, 0.0, rink_color);
+	circle_render(v2(pos.x+w-r, pos.y+r), r, 0.0, rink_color);
+	circle_render(v2(pos.x+w-r, pos.y+h-r), r, 0.0, rink_color);
+	circle_render(v2(pos.x+r, pos.y+h-r), r, 0.0, rink_color);
+	
+	
+	// goals
+	for (int i=0; i < NUM_GOALS; ++i) {
+		Vec2 gxy = v2add(v2mult(io->rink.goals[i].xy, scale), pos); 
+		circle_render(gxy, scale * io->rink.goals[i].rmax, scale * io->rink.goals[i].rmax -5.0, goal_warn);
+		circle_render(gxy, scale * io->rink.goals[i].rmin, 0.0, goal_warn);
+		circle_render(gxy, scale * io->rink.goals[i].rgoal, 0.0, goal_color);
+	}
+	// stars
+	for (int i=0; i < io->rink.n_stars; ++i) {
+		Vec2 sxy = v2add(v2mult(io->rink.stars[i].xy, scale), pos); 
+		circle_render(sxy, scale * io->rink.stars[i].r, 0.0, star_color);
+	}
+	
+}
 
 void game_update(void)
 {
@@ -151,23 +194,14 @@ void game_update(void)
 	Vec2 pos = v2rot(v2(1.0, 0.0), 0*time());
 	
 	// draw the board
-	glUseProgram(g_rect_shader.id);
-	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
-	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_rect_shader.args[0]);
-	rectangle_render(v2(100.0, 200.0), v2(30.0, 120.0), 0.8, 0.0, 0.0);
-	
-	glUseProgram(g_circle_shader.id);
-	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
-	glVertexAttribPointer(g_circle_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_circle_shader.args[0]);
-	circle_render(v2(800.0, 400.0), 40.0, 30.0, 0.0, 0.5, 0.0);
+	draw_rink(v2(10, 10), (g_w-20.0) / io->rink.w);
 
 	glUseProgram(g_player_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
 	glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(g_player_shader.args[0]);
-	player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());	
+	player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());
+	
 }
 
 int main(int argc, char *argv[])
@@ -178,9 +212,18 @@ int main(int argc, char *argv[])
 	on_exit(shm_on_exit, &g_shm);
 	io = (IOMem*)g_shm.mem;
 	input = &io->input;
+
 	DEBUG("Zero Mem");
 	memset(io, 0, sizeof(IOMem));
 
+	io->rink.w =32;
+	io->rink.h = 18;
+	io->rink.r = 9;
+	io->rink.goals[0] = (Goal){{9, 9}, 0.5, 2, 4 };
+	io->rink.goals[1] = (Goal){ {32-9,9}, 0.5,2,4};
+	io->rink.n_stars = 1;
+	io->rink.stars[0] = (Circle){ {16.0,9.0}, 2.0};
+	
 	char *prog = argv[1];
 	int a;
 	for (a = 0; a < argc-1; ++a)

@@ -1,49 +1,45 @@
 #include <stdio.h>
 
-int pow(int base, int power)
-{ // base = 10,   power=0
-	//  +-*/%
-	int answer = 1;//base*base*base*base...;
+
+void put_number(int x)
+{ // x = 567
+	int bob = 1;
+	int mom = 1; 1000
 	
-	while (power > 0 )
+	while (bob != 0)
 	{
-		answer = answer*base;
-		power = power-1;
+		mom = mom * 10;
+		putchar ( bob%
+		bob = x/10;
 	}
 	
-	return answer;
+	
+	while (mom >= 10)
+	{
+		putchar(x%mom/(mom/10) + '0'); 
+		mom = mom/10;
+	}
+	putchar('\n'); 
 }
 
+int main(int argc, char *argv[])
+{	
+	say_hello();
+	put_number(43, 10000);
+	//~ put_number(50);
+	//~ put_number(255);
+	//~ put_number(1999);
+	//~ put_number(0);
+	return 0;
+}
 
-void put_number(int x, int num_digits, int base)
-{
-	//~ putchar(x%100000/10000 + 48); // 1000's
-	//~ putchar(x%10000/1000 + 48); // 100's
+	//~ putchar(x%100000/10000 + 48); // 10000's
+	//~ putchar(x%10000/1000 + 48); // 1000's
 	//~ putchar(x%1000/100 + 48); // 100's
 	//~ putchar(x%100/10 + 48); // 10's
 	//~ putchar(x%10/1 + 48); // 1's
 	//~ stop!!!! mom == 1
 		
-	int mom =  pow(base, num_digits) ;
-	while (mom >=base)
-	{
-		putchar(x%mom/(mom/base) + '0'); 
-		mom = mom/base;
-	}
-	putchar('\n'); 
-}
-
-
-int main(int argc, char *argv[])
-{	
-	put_number(23, 8, 10);
-	put_number(50, 8, 7);
-	put_number(255, 8, 2);
-	put_number(1999, 8, 9);
-	put_number(0, 1, 100);
-	return 0;
-}
-
 
 
 

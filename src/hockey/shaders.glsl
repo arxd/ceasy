@@ -1,3 +1,18 @@
+
+////V_TRANSCALE
+#version 100
+precision mediump float;
+attribute vec2 aPos;
+uniform vec2 uScale;
+uniform vec2 uTranslate;
+uniform mat3 uScreen;
+
+void main()
+{
+	gl_Position = vec4((uScale*aPos + uOffset)/uSize*2.0 - 1.0, 0.0, 1.0);
+}
+
+
 ////V_RECT
 #version 100
 precision mediump float;
@@ -91,7 +106,7 @@ void main()
 {
 	vec2 diff = gl_FragCoord.xy - uOffset;
 	float radius = sqrt(diff.x*diff.x + diff.y*diff.y) / uScale.x;
-	gl_FragColor = vec4(uColor, 1.0)*(1.0-step(1.0, radius));
+	gl_FragColor = vec4(uColor, 1.0)*step(uInnerRadius / uScale.x, radius)*(1.0-step(1.0, radius));
 	
 	
 }

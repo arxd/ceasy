@@ -3,10 +3,28 @@
 
 #define V0 ((Vec2){0.0, 0.0})
 
-typedef struct s_Vec2 Vec2;
-struct s_Vec2 {
-	float x, y;
+typedef union s_Vec2 Vec2;
+union s_Vec2 {
+	struct {
+		float x, y;
+	};
+	float xy[2];
 };
+
+
+typedef union s_Vec3 Vec3;
+union s_Vec3 {
+	struct {
+		float x, y, z;
+	};
+	struct {
+		float r, g, b;
+	};
+	float xyz[3];
+	float rgb[3];
+};
+
+Vec3 v3(float x, float y, float z);
 
 Vec2 v2(float x, float y);
 Vec2 v2add(Vec2 v0, Vec2 v1);
@@ -32,6 +50,12 @@ Vec2 v2(float x, float y)
 {
 	return (Vec2){x,y};
 }
+
+Vec3 v3(float x, float y, float z)
+{
+	return (Vec3){x,y, z};
+}
+
 
 Vec2 v2add(Vec2 v0, Vec2 v1)
 {
