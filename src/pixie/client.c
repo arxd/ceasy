@@ -25,12 +25,7 @@ void copy8(uint8_t *dest, uint8_t *src, int words);
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <unistd.h>
-#include <signal.h>
-#include <time.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/shm.h>
 
 #ifndef FONT4x6x1_C
 #include "font4x6x1.c"
@@ -73,15 +68,6 @@ void copy32(uint8_t *dest, uint32_t *src, int words)
 }
 
 
-double now(void)
-{
-	static struct timespec t0 = {0xFFFFFFFF, 0xFFFFFFFF};
-	if (t0.tv_nsec == 0xFFFFFFFF) 
-		clock_gettime(CLOCK_REALTIME, &t0);
-	struct timespec t1;
-	clock_gettime(CLOCK_REALTIME, &t1);
-	return (t1.tv_sec - t0.tv_sec) + 1.0e-9*( t1.tv_nsec - t0.tv_nsec);
-}
 
 FrameSyncHandler *g_fs_handler;
 
@@ -96,8 +82,28 @@ void on_frame_sync(FrameSyncHandler *handler)
 	g_fs_handler = handler;
 }
 
+#ifdef WIN32
+void setup_shm(const char *shmid_str)
+{
+	printf("SETUP Windows shared mem\n");
+	ABORT(1, "Windows Sucks");
+}
 
-void io_init(const char *shmid_str)
+double now(void)
+{
+	return 0.0;
+}
+
+
+#else
+
+#include <sys/types.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <signal.h>
+#include <time.h>
+
+void setup_shm(const char *shmid_str)
 {
 	char * endptr;
 	int shmid = (int)strtol(shmid_str, &endptr, 16);
@@ -106,12 +112,33 @@ void io_init(const char *shmid_str)
 	io = (IOMem*)shmat(shmid, NULL, 0);
 	if ((void*)io == (void*)-1)
 		ABORT(2, "Couldn't attache shared memory");
+	
+	
+	signal(SIGUSR1, sig_handler);
+	
+}
 
+double now(void)
+{
+	static struct timespec t0 = {0xFFFFFFFF, 0xFFFFFFFF};
+	if (t0.tv_nsec == 0xFFFFFFFF) 
+		clock_gettime(CLOCK_REALTIME, &t0);
+	struct timespec t1;
+	clock_gettime(CLOCK_REALTIME, &t1);
+	return (t1.tv_sec - t0.tv_sec) + 1.0e-9*( t1.tv_nsec - t0.tv_nsec);
+}
+
+
+#endif
+
+
+void io_init(const char *shmid_str)
+{
+	setup_shm(shmid_str);
 	vram = io->vram;
 	layers = io->layers;
 	input = &io->input;
 	
-	signal(SIGUSR1, sig_handler);
 	
 	uint32_t pal[256] = {
 		0xdddddd00,
@@ -165,15 +192,6 @@ void printf_xy(int x, int y, const char *fmt, ...)
 		++addr;
 		++chr;
 	}
-}
-
-void printf_window(int ulX, int ulY, int brX, int brY, const char *fmt, ...)
-{
-	char buffer[64*24+1];
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buffer, 64*24+1, fmt, args);	
-	va_end(args);
 }
 
 #endif

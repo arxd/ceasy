@@ -1,11 +1,14 @@
-import re
+import re, os.path
 from subprocess import Popen, PIPE
 
 def htmpl_file_scan(node, env, path):
 	contents = node.get_text_contents()
 	dir = str(node.get_dir())
-	includes = [dir+'/'+i for i in re.compile(r'^@include\s+(\S+)$', re.M).findall(contents)]
-	#~ print("SCAN: %s > %s"%(node, includes))
+	# print(contents);
+	results = re.findall(r'^@include\s+(\S+)', contents, re.M)
+	# print(results)
+	includes = [os.path.join(dir,i) for i in results]
+	# print("SCAN: %s > %s"%(node, includes))
 	return env.File(includes)
 
 def header_template_emitter(target, source, env):
@@ -19,7 +22,7 @@ def header_template(target, source, env):
 	dest = open(str(target[0]), 'w')
 	for line in src:
 		if line.startswith("@"):
-			with open("{}/{}".format(source[0].get_dir(), line[8:].strip())) as inc:
+			with open(os.path.join(str(source[0].get_dir()), line[8:].strip())) as inc:
 				dest.write(inc.read())
 		else:
 			dest.write(line)
