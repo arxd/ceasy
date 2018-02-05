@@ -41,21 +41,21 @@ int g_w, g_h;
 
 void rectangle_render(Vec2 pos, Vec2 scale, float r, float g, float b)
 {
-	glUniform2f(g_player_shader.args[1], g_w, g_h);
-	glUniform2f(g_player_shader.args[2], scale.x, scale.y);
-	glUniform2f(g_player_shader.args[3], pos.x, pos.y);
-	glUniform3f(g_player_shader.args[4], r, g, b);
+	glUniform2f(g_rect_shader.args[1], g_w, g_h);
+	glUniform2f(g_rect_shader.args[2], scale.x, scale.y);
+	glUniform2f(g_rect_shader.args[3], pos.x, pos.y);
+	glUniform3f(g_rect_shader.args[4], r, g, b);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 }
 
 void circle_render(Vec2 pos, float r1, float r2, float r, float g, float b)
 {	
-	glUniform2f(g_player_shader.args[1], g_w, g_h);
-	glUniform1f(g_player_shader.args[2], r1);
-	glUniform1f(g_player_shader.args[3], r2);	
-	glUniform2f(g_player_shader.args[4], pos.x, pos.y);
-	glUniform3f(g_player_shader.args[5], r, g, b);
+	glUniform2f(g_circle_shader.args[1], g_w, g_h);
+	glUniform2f(g_circle_shader.args[2], pos.x, pos.y);
+	glUniform2f(g_circle_shader.args[3], r1, r1);
+	glUniform1f(g_circle_shader.args[4], r2);	
+	glUniform3f(g_circle_shader.args[5], r, g, b);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 8);
 }
 
@@ -79,23 +79,23 @@ void gl_context_change(void)
 	if (g_player_shader.id == 0) {
 		DEBUG("First Context Change");
 
-		if (!shader_init(&g_player_shader, V_CIRCLE, F_PLAYER, (char*[]){
+		if (!shader_init(&g_player_shader, V_PLAYER, F_PLAYER, (char*[]){
 			"aPos", "uSize", "uScale", "uOffset", "uAngle", 
 			"uThrust","uGrab", NULL}))
 			ABORT(1, "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_player_shader);
 
-		if (!shader_init(&g_circle_shader, V_CIRCLE, F_CIRCLE, (char*[]){
-			"aPos", "uSize", "uScale",  "uInnerRadius","uOffset", "uColor", 
+		if (!shader_init(&g_circle_shader, V_RECT, F_CIRCLE, (char*[]){
+			"aPos", "uSize","uOffset", "uScale", "uInnerRadius", "uColor", 
 			 NULL}))
 			ABORT(1, "Couldn't create fb shader");
-		on_exit(shader_on_exit, &g_player_shader);
+		on_exit(shader_on_exit, &g_circle_shader);
 		
 		if (!shader_init(&g_rect_shader, V_RECT, F_RECT, (char*[]){
 			"aPos", "uSize","uOffset", "uScale", "uColor", 
 			 NULL}))
 			ABORT(1, "Couldn't create fb shader");
-		on_exit(shader_on_exit, &g_player_shader);
+		on_exit(shader_on_exit, &g_rect_shader);
 	}
 	
 	DEBUG("Context change");
@@ -110,7 +110,9 @@ void gl_context_change(void)
 	glDeleteBuffers(1, &g_rect_vb);
 	glGenBuffers(1, &g_rect_vb);
 		
-	GLfloat verts[] = {
+		
+	// Circle verts
+	GLfloat cverts[] = {
 		0.0, 0.0, 
 		2.0/sqrt(3.0), 0.0,
 		sqrt(3.0)/3.0, 1.0,
@@ -120,29 +122,21 @@ void gl_context_change(void)
 		sqrt(3.0)/3.0, -1.0,
 		2.0/sqrt(3.0), 0.0,
 		};
-		
-	// Circle verts
 	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, verts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_circle_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_circle_shader.args[0]);
- 
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, cverts, GL_STATIC_DRAW);
+
 	// player verts
 	for (int i=0; i < 2*8; ++i)
-		verts[i] *= 1.5;
-	verts[2] *= 2.0;
-	verts[14] *= 2.0;
-	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, verts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_player_shader.args[0]);
+		cverts[i] *= 1.5;
+	cverts[2] *= 2.0;
+	cverts[14] *= 2.0;
+	glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, cverts, GL_STATIC_DRAW);
 	
 	// rectangle verts
 	GLfloat rverts[] = {0.0, 0.0, 0.0,1.0, 1.0, 0.0, 1.0, 1.0};
 	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 8, rverts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_rect_shader.args[0]);
 
 }
 
@@ -157,18 +151,23 @@ void game_update(void)
 	Vec2 pos = v2rot(v2(1.0, 0.0), 0*time());
 	
 	// draw the board
-	//~ glUseProgram(g_rect_shader.id);
-	//~ rectangle_render(v2(0.0, 0.0), v2(30.0, 12.0), 0.3, 0.0, 0.0);
+	glUseProgram(g_rect_shader.id);
+	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
+	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_rect_shader.args[0]);
+	rectangle_render(v2(100.0, 200.0), v2(30.0, 120.0), 0.8, 0.0, 0.0);
 	
 	glUseProgram(g_circle_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
-	//~ glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, verts, GL_STATIC_DRAW);
-	//~ glVertexAttribPointer(g_circle_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glVertexAttribPointer(g_circle_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(g_circle_shader.args[0]);
-	circle_render(v2(600.0, 400.0), 40.0, 30.0, 0.0, 0.3, 0.0);
+	circle_render(v2(800.0, 400.0), 40.0, 30.0, 0.0, 0.5, 0.0);
 
-	//~ glUseProgram(g_player_shader.id);
-	//~ player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());	
+	glUseProgram(g_player_shader.id);
+	glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
+	glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_player_shader.args[0]);
+	player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());	
 }
 
 int main(int argc, char *argv[])

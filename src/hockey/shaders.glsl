@@ -11,7 +11,7 @@ void main()
 	gl_Position = vec4((uScale*aPos + uOffset)/uSize*2.0 - 1.0, 0.0, 1.0);
 }
 
-////V_CIRCLE
+////V_PLAYER
 #version 100
 precision mediump float;
 attribute vec2 aPos;
@@ -82,7 +82,7 @@ void main()
 ////F_CIRCLE
 #version 100
 precision mediump float;
-uniform float uScale;
+uniform vec2 uScale;
 uniform float uInnerRadius;
 uniform vec3 uColor;
 uniform vec2 uOffset;
@@ -90,7 +90,7 @@ uniform vec2 uOffset;
 void main()
 {
 	vec2 diff = gl_FragCoord.xy - uOffset;
-	float radius = sqrt(diff.x*diff.x + diff.y*diff.y) / uScale;
+	float radius = sqrt(diff.x*diff.x + diff.y*diff.y) / uScale.x;
 	gl_FragColor = vec4(uColor, 1.0)*(1.0-step(1.0, radius));
 	
 	
