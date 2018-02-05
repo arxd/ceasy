@@ -1,14 +1,15 @@
 #shared
-p = Platform()
-print(p)
+print(Platform())
 Import('env')
 env = env.Clone()
 
-src = ['util.c', 'share.c', 'glhelper.c', 'window_glfw.c']
-if Platform() == 'win32':
-	src.append('subproc_w.c')
+src = ['util.c', 'glhelper.c', 'window_glfw.c', 'subproc_w.c', 'share_mem_w.c']
+if Platform().name == 'win32':
+	src += []
 else:
-	src.append('subproc.c')
+	src += ['subproc.c', 'share.c']
+	
+print(src)
 
 shared_utils = env.Library('shared_utils', src)
 

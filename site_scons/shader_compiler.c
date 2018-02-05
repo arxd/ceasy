@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <malloc.h>
 
 #define ABORT(code, fmt, ...)   _abort(code, __FILE__, __LINE__, fmt, ## __VA_ARGS__)
 void _abort(int code, char *file, int line, const char *fmt, ...)

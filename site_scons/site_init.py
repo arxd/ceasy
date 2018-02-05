@@ -43,7 +43,12 @@ def shader_emitter(target, source, env):
 
 
 def TOOL_SHADER(env):
-	ccglsl = env.Program('#site_scons/ccglsl', ["#site_scons/shader_compiler.c"] , LIBS=['GLESv2', 'glfw'])
+	if Platform().name == 'win32':
+		libs = [ 'glfw3dll', 'opengl32']
+	else:
+		libs = ['GLESv2', 'glfw']
+
+	ccglsl = env.Program('#site_scons/ccglsl', ["#site_scons/shader_compiler.c"] , LIBS=libs)
 	#~ shaders = env.Command('shaders.h', 'shaders.glsl', shader_compile)
 	#~ env.Depends(shaders, ccglsl)
 	env.Append(BUILDERS = {'GLSL' : Builder(
