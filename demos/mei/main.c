@@ -4,12 +4,11 @@
 void put_number(int x)
 { // x = 567
 	int bob = 1;
-	int mom = 1; 1000
+	int mom = 1; 
 	
 	while (bob != 0)
 	{
 		mom = mom * 10;
-		putchar ( bob%
 		bob = x/10;
 	}
 	
@@ -24,8 +23,7 @@ void put_number(int x)
 
 int main(int argc, char *argv[])
 {	
-	say_hello();
-	put_number(43, 10000);
+	put_number(43);
 	//~ put_number(50);
 	//~ put_number(255);
 	//~ put_number(1999);
