@@ -9,7 +9,8 @@ uniform mat3 uScreen;
 
 void main()
 {
-	gl_Position = vec4(aPos, 0.0, 1.0);
+	vec3 pos = uScreen*vec3(aPos*uScale+uTranslate, 1.0);
+	gl_Position = vec4(pos.xy, 0.0, 1.0);
 }
 
 
@@ -111,7 +112,7 @@ void main()
 	
 }
 
-////F_RECT
+////F_SOLID
 #version 100
 precision mediump float;
 //~ uniform float uScale;

@@ -38,13 +38,25 @@ GLuint g_circle_vb = 0;
 GLuint g_rect_vb = 0;
 
 int g_w, g_h;
+Vec3 cam;
+GLfloat view_mat[3][3];
+
+void build_viewmat(void)
+{
+	view_mat[0][0] = (2.0/g_w);
+	view_mat[1][1] = (2.0/g_h);
+	view_mat[2][2] = 1.0;
+	view_mat[0][2] = -1.0;//-g_w/2.0;
+	view_mat[1][2] = -1.0;
+	
+}
 
 void rectangle_render(Vec2 pos, Vec2 scale, Vec3 color)
 {
-	glUniform2f(g_rect_shader.args[1], g_w, g_h);
-	glUniform2f(g_rect_shader.args[2], pos.x, pos.y);
-	glUniform2f(g_rect_shader.args[3], scale.x, scale.y);
-	glUniform3fv(g_rect_shader.args[4], 1, color.rgb);
+	glUniformMatrix3fv(g_rect_shader.args[1], 1, 1, &view_mat[0][0]);// uScreen
+	glUniform2f(g_rect_shader.args[2], pos.x, pos.y); // uTranslate
+	glUniform2f(g_rect_shader.args[3], scale.x, scale.y); //uScale
+	glUniform3fv(g_rect_shader.args[4], 1, color.rgb); //uColor
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 }
@@ -91,8 +103,8 @@ void gl_context_change(void)
 			ABORT(1, "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_circle_shader);
 		
-		if (!shader_init(&g_rect_shader, V_RECT, F_RECT, (char*[]){
-			"aPos", "uSize","uOffset", "uScale", "uColor", 
+		if (!shader_init(&g_rect_shader, V_TRANSCALE, F_SOLID, (char*[]){
+			"aPos", "uScreen","uTranslate", "uScale", "uColor", 
 			 NULL}))
 			ABORT(1, "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_rect_shader);
@@ -194,13 +206,21 @@ void game_update(void)
 	Vec2 pos = v2rot(v2(1.0, 0.0), 0*time());
 	
 	// draw the board
-	draw_rink(v2(10, 10), (g_w-20.0) / io->rink.w);
+	//~ draw_rink(v2(10, 10), (g_w-20.0) / io->rink.w);
+	cam = v3(-0.25, 0.25, 1.0);
+	build_viewmat();
+	
+	glUseProgram(g_rect_shader.id);
+	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
+	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(g_rect_shader.args[0]);
+	rectangle_render(v2(10.0, 20.0), v2(100.0, 30.0), v3(0.2,0.4,0.8));
 
-	glUseProgram(g_player_shader.id);
-	glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
-	glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_player_shader.args[0]);
-	player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());
+	//~ glUseProgram(g_player_shader.id);
+	//~ glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
+	//~ glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
+	//~ glEnableVertexAttribArray(g_player_shader.args[0]);
+	//~ player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());
 	
 }
 
