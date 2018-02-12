@@ -43,20 +43,21 @@ GLfloat view_mat[3][3];
 
 void build_viewmat(void)
 {
-	view_mat[0][0] = (2.0/g_w);
-	view_mat[1][1] = (2.0/g_h);
+	view_mat[0][0] = (2.0/g_w) * cam.z;
+	view_mat[1][1] = (2.0/g_h) * cam.z;
 	view_mat[2][2] = 1.0;
-	view_mat[0][2] = -1.0;//-g_w/2.0;
-	view_mat[1][2] = -1.0;
+	view_mat[0][2] = (cam.x/g_w);//-g_w/2.0;
+	view_mat[1][2] = (cam.y/g_h);
 	
 }
 
-void rectangle_render(Vec2 pos, Vec2 scale, Vec3 color)
+void rectangle_render(Vec2 pos, Vec2 scale, float angle, Vec3 color)
 {
 	glUniformMatrix3fv(g_rect_shader.args[1], 1, 1, &view_mat[0][0]);// uScreen
 	glUniform2f(g_rect_shader.args[2], pos.x, pos.y); // uTranslate
 	glUniform2f(g_rect_shader.args[3], scale.x, scale.y); //uScale
-	glUniform3fv(g_rect_shader.args[4], 1, color.rgb); //uColor
+	glUniform1f(g_rect_shader.args[4], angle); //uScale
+	glUniform3fv(g_rect_shader.args[5], 1, color.rgb); //uColor
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 }
@@ -104,12 +105,13 @@ void gl_context_change(void)
 		on_exit(shader_on_exit, &g_circle_shader);
 		
 		if (!shader_init(&g_rect_shader, V_TRANSCALE, F_SOLID, (char*[]){
-			"aPos", "uScreen","uTranslate", "uScale", "uColor", 
+			"aPos", "uScreen","uTranslate", "uScale",  "uAngle", "uColor", 
 			 NULL}))
 			ABORT(1, "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_rect_shader);
 	}
-	
+	cam = v3(0.0, 0.0, 100.0);
+
 	DEBUG("Context change");
 	glClearColor(0.2, 0.2, 0.2, 1.0);
 	glEnable (GL_BLEND);
@@ -169,8 +171,8 @@ void draw_rink(Vec2 pos, float scale)
 	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
 	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(g_rect_shader.args[0]);
-	rectangle_render(v2(pos.x+r, pos.y), v2(w - 2.0*r, h), rink_color);
-	rectangle_render(v2(pos.x, pos.y+r), v2(w, h - 2.0*r), rink_color);
+	rectangle_render(v2(pos.x+r, pos.y), v2(w - 2.0*r, h), 0.0, rink_color);
+	rectangle_render(v2(pos.x, pos.y+r), v2(w, h - 2.0*r), 0.0, rink_color);
 	// corners
 	glUseProgram(g_circle_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_circle_vb);
@@ -200,22 +202,41 @@ void draw_rink(Vec2 pos, float scale)
 void game_update(void)
 {
 	win_size(&g_w, &g_h);
-
+	static float angle = 0.0;
+	
+	if (input->alpha & (1<<('a'-'a')))
+		cam.x -= 10.0;
+	if (input->alpha & (1<<('d'-'a'))) 
+		cam.x += 10.0;
+	if (input->alpha & (1<<('s'-'a'))) 
+		cam.y -= 10.0;
+	if (input->alpha & (1<<('w'-'a'))) 
+		cam.y += 10.0;
+	if (input->alpha & (1<<('q'-'a'))) 
+		angle += 0.06;
+	if (input->alpha & (1<<('e'-'a'))) 
+		angle -= 0.06;
+	if (input->alpha & (1<<('r'-'a'))) 
+		cam.z *= 1.1;
+	if (input->alpha & (1<<('f'-'a'))) 
+		cam.z /= 1.1;
+	
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	Vec2 pos = v2rot(v2(1.0, 0.0), 0*time());
 	
 	// draw the board
-	//~ draw_rink(v2(10, 10), (g_w-20.0) / io->rink.w);
-	cam = v3(-0.25, 0.25, 1.0);
+	//~ draw_rink(v2(0, 0), (g_w-20.0) / io->rink.w);
 	build_viewmat();
 	
 	glUseProgram(g_rect_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);
 	glVertexAttribPointer(g_rect_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(g_rect_shader.args[0]);
-	rectangle_render(v2(10.0, 20.0), v2(100.0, 30.0), v3(0.2,0.4,0.8));
-
+	rectangle_render(v2(0.0, 0.0), v2(0.5, 0.9), angle, v3(0.2,0.4,0.8));
+	rectangle_render(v2(1.0, 1.0), v2(0.5, 0.9), angle, v3(0.2,0.4,0.8));
+	rectangle_render(v2(1.0, 0.0), v2(0.5, 0.9), angle, v3(0.2,0.4,0.8));
+	rectangle_render(v2(0.0, 1.0), v2(0.5, 0.9), angle, v3(0.2,0.4,0.8));
 	//~ glUseProgram(g_player_shader.id);
 	//~ glBindBuffer(GL_ARRAY_BUFFER, g_player_vb);
 	//~ glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);

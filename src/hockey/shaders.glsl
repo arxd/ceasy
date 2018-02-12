@@ -6,10 +6,17 @@ attribute vec2 aPos;
 uniform vec2 uScale;
 uniform vec2 uTranslate;
 uniform mat3 uScreen;
+uniform float uAngle;
 
 void main()
 {
-	vec3 pos = uScreen*vec3(aPos*uScale+uTranslate, 1.0);
+	float c = cos(uAngle);
+	float s = sin(uAngle);
+	vec2 pos2 = mat2(c, s, -s, c)*(aPos*uScale)+uTranslate;
+	
+	
+	
+	vec3 pos = uScreen*vec3(pos2, 1.0);
 	gl_Position = vec4(pos.xy, 0.0, 1.0);
 }
 
