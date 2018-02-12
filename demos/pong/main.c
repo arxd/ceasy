@@ -82,7 +82,7 @@ void frame_sync_handler(int frame)
 
 int main(int argc, char *argv[])
 {
-	io_init(argv[0]);
+	pixie_init(argv[0]);
 	srand((char)(*argv[0])); // throw some random bits as a seed
 	
 	// layer 10 is the ball

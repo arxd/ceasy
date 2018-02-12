@@ -12,7 +12,7 @@ extern uint8_t *vram;
 extern Layer *layers;
 extern volatile Input *input;
 
-void io_init(const char *shmid_str);
+void pixie_init(const char *shmid_str);
 void printf_xy(int x, int y, const char *fmt, ...);
 void on_frame_sync(FrameSyncHandler *handler);
 double now(void);
@@ -132,7 +132,7 @@ double now(void)
 #endif
 
 
-void io_init(const char *shmid_str)
+void pixie_init(const char *shmid_str)
 {
 	setup_shm(shmid_str);
 	vram = io->vram;

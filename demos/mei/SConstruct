@@ -1,6 +1,6 @@
 NAME="mei"
 Import("*")
-env = env.Clone(CPPPATH=['#include'])
+env = env.Clone(CPPPATH=['#include'], LIBS=['m'])
 prog = env.Program(NAME, ['main.c'])
 env.Depends(prog, File('#include/pixie.h'))
 inst = env.Install('#bin', prog)
