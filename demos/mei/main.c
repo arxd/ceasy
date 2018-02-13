@@ -145,6 +145,7 @@ int main(int argc, char *argv[])
 		n = n + 1;
 	}
 	
+	printf_xy(0,0,"$");
 	while(!(input->status & STATUS_CLOSE))
 		sleep(1);
 	
