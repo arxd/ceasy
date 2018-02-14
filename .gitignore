@@ -1,4 +1,6 @@
 .*
+*.o
+site_scons/ccglsl
 !/.gitignore
 build
 lib

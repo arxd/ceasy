@@ -21,13 +21,6 @@ SubProc g_subproc;
 IOMem *io;
 Input *input;
 
-void event_callback(int type, float ts, int p1, int p2)
-{
-	printf("EVENT %d\n", type);
-	
-	
-}
-
 Shader g_player_shader;
 Shader g_circle_shader;
 Shader g_rect_shader;
@@ -36,24 +29,12 @@ GLuint g_player_vb = 0;
 GLuint g_circle_vb = 0;
 GLuint g_rect_vb = 0;
 
-Vec3 cam;
-GLfloat view_mat[3][3];
-
 const char *gl_name = "Hockey";
 
-void build_viewmat(void)
-{
-	view_mat[0][0] = (2.0/GW.w) * cam.z;
-	view_mat[1][1] = (2.0/GW.h) * cam.z;
-	view_mat[2][2] = 1.0;
-	view_mat[0][2] = (cam.x/GW.w);//-g_w/2.0;
-	view_mat[1][2] = (cam.y/GW.h);
-	
-}
 
 void rectangle_render(Vec2 pos, Vec2 scale, float angle, Vec3 color)
 {
-	glUniformMatrix3fv(g_rect_shader.args[1], 1, 1, &view_mat[0][0]);// uScreen
+	glUniformMatrix3fv(g_rect_shader.args[1], 1, GL_FALSE, &GW.vmat[0][0]);// uScreen
 	glUniform2f(g_rect_shader.args[2], pos.x, pos.y); // uTranslate
 	glUniform2f(g_rect_shader.args[3], scale.x, scale.y); //uScale
 	glUniform1f(g_rect_shader.args[4], angle); //uScale
@@ -107,7 +88,7 @@ void gl_init(void)
 			 NULL}), "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_rect_shader);
 	}
-	cam = v3(0.0, 0.0, 100.0);
+	GW.zoomx = GW.zoomy = 100.0;
 
 	INFO("Context change");
 	glClearColor(0.2, 0.2, 0.2, 1.0);
@@ -201,21 +182,22 @@ int gl_frame(void)
 	static float angle = 0.0;
 	
 	if (input->alpha & KALPHA_A)
-		cam.x -= 10.0;
+		GW.camx -= 10.0;
 	if (input->alpha & KALPHA_D) 
-		cam.x += 10.0;
+		GW.camx += 10.0;
 	if (input->alpha & KALPHA_S) 
-		cam.y -= 10.0;
+		GW.camy -= 10.0;
 	if (input->alpha &KALPHA_W) 
-		cam.y += 10.0;
+		GW.camy += 10.0;
 	if (input->alpha & KALPHA_Q) 
 		angle += 0.06;
 	if (input->alpha & KALPHA_E) 
 		angle -= 0.06;
 	if (input->alpha & KALPHA_R) 
-		cam.z *= 1.1;
+		GW.zoomx *= 1.1;
 	if (input->alpha & KALPHA_F) 
-		cam.z /= 1.1;
+		GW.zoomx /= 1.1;
+	GW.zoomy = GW.zoomx;
 	
 	glClear(GL_COLOR_BUFFER_BIT);
 	
@@ -223,7 +205,7 @@ int gl_frame(void)
 	
 	// draw the board
 	//~ draw_rink(v2(0, 0), (g_w-20.0) / io->rink.w);
-	build_viewmat();
+	//~ build_viewmat();
 	
 	glUseProgram(g_rect_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_rect_vb);

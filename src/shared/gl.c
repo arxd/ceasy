@@ -98,7 +98,7 @@ struct s_Window {
 // Render State
 	GLfloat color[4];
 	GLfloat camx, camy;
-	GLfloat zoom;
+	GLfloat zoomx, zoomy;
 	GLfloat vmat[3][3];
 
 	
@@ -158,9 +158,10 @@ char key_pop(void);
  */
 #ifdef GL_DRAWING
 void draw_color(float r, float g, float b, float a);
-void draw_line_strip(int npts, GLfloat *pts);
-void draw_line_loop(int npts, GLfloat *pts);
-void draw_lines(int npts, GLfloat *pts);
+void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
+void draw_line_loop(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
+void draw_lines(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
+void draw_polygon(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
 #endif
 
 #if __INCLUDE_LEVEL__ == 0
@@ -556,17 +557,25 @@ void helper_gl_init(void)
 #ifdef GL_DRAWING
 	if (!g_line_shader.id) {
 		ASSERT(shader_init(&g_line_shader, "#version 100\n\
-			precision mediump float;\n\
-			attribute vec2 aPos;\n\
-			uniform mat3 uScreen;\n\
-			void main(){\n\
-				vec3 pos3 = uScreen*vec3(aPos, 1.0);\n\
-				gl_Position = vec4(aPos, 0.0, 1.0);\n\
-			}", "#version 100\n\
+precision mediump float;\n\
+attribute vec2 aPos;\n\
+uniform vec2 uScale;\n\
+uniform vec2 uTranslate;\n\
+uniform mat3 uScreen;\n\
+uniform float uAngle;\n\
+void main()\n\
+{\n\
+	float c = cos(uAngle);\n\
+	float s = sin(uAngle);\n\
+	vec2 pos2 = mat2(c, s, -s, c)*(aPos*uScale)+uTranslate;\n\
+	vec3 pos = uScreen*vec3(pos2, 1.0);\n\
+	gl_Position = vec4(pos.xy, 0.0, 1.0);\n\
+}"
+		, "#version 100\n\
 			precision mediump float;\n\
 			uniform vec4 uColor;\n\
 			void main(){gl_FragColor = uColor;}",
-			(char*[]){"aPos", "uScreen", "uColor", NULL}
+			(char*[]){"aPos", "uScreen","uTranslate", "uScale",  "uAngle", "uColor",  NULL}
 		), "Couldn't create g_line_shader shader");
 		on_exit(shader_on_exit, &g_line_shader);
 	}
@@ -587,9 +596,10 @@ void draw_color(float r, float g, float b, float a)
 	
 }
 
-void drawl(GLenum mode, int npts, GLfloat *pts)
+void drawl(GLenum mode, GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
 {
-	//~ DEBUG("%d %d %f\n", g_line_shader.id, npts, pts[0]);
+
+//~ DEBUG("%d %d %f\n", g_line_shader.id, npts, pts[0]);
 	glUseProgram(g_line_shader.id);
 	glBindBuffer(GL_ARRAY_BUFFER, g_line_vb);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 2*npts, pts, GL_STATIC_DRAW);
@@ -599,21 +609,28 @@ void drawl(GLenum mode, int npts, GLfloat *pts)
 	//~ GW.vmat = (GLfloat[3][3]){1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 	//~ GW.color = (GLfloat[4]){1.0, 1.0, 0.0, 1.0};
 	
-	glUniformMatrix3fv(g_line_shader.args[1], 1, 1, &GW.vmat[0][0]);// uScreen
-	glUniform4fv(g_line_shader.args[2], 1, GW.color); //uColor
+	glUniformMatrix3fv(g_line_shader.args[1], 1, GL_FALSE, &GW.vmat[0][0]);// uScreen
+	glUniform2fv(g_line_shader.args[2],1, xy); // uTranslate
+	glUniform2fv(g_line_shader.args[3],1, scale); //uScale
+	glUniform1f(g_line_shader.args[4], angle*M_PI/180.0); //uScale
+	glUniform4fv(g_line_shader.args[5], 1, GW.color); //uColor
 	glDrawArrays(mode, 0, npts);
 }
-void draw_line_strip(int npts, GLfloat *pts)
+void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
 {
-	drawl(GL_LINE_STRIP, npts, pts);
+	drawl(GL_LINE_STRIP, xy, scale, angle, npts, pts);
 }
-void draw_line_loop(int npts, GLfloat *pts)
+void draw_line_loop(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
 {
-	drawl(GL_LINE_LOOP, npts, pts);
+	drawl(GL_LINE_LOOP, xy, scale, angle, npts, pts);
 }
-void draw_lines(int npts, GLfloat *pts)
+void draw_lines(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
 {
-	drawl(GL_LINES, npts, pts);
+	drawl(GL_LINES, xy, scale, angle, npts, pts);
+}
+void draw_polygon(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
+{
+	drawl(GL_TRIANGLE_FAN, xy, scale, angle, npts, pts);
 }
 #endif
 
@@ -660,7 +677,7 @@ void win_on_exit(int status, void *arg)
 int main(int argc, char *argv[])
 {
 	memset(&GW, 0, sizeof(Window));
-	GW.zoom = 1.0;	
+	GW.zoomx = GW.zoomy = 1.0;	
 	ASSERT(main_init(argc, argv) == 0, "main_init");
 	
 	glfwSetErrorCallback(error_callback);
@@ -681,11 +698,11 @@ int main(int argc, char *argv[])
 	glfwSetTime (0.0);
 	while(!glfwWindowShouldClose(GW.window)) {
 		glfwPollEvents();
-		GW.vmat[0][0] = 2.0*GW.zoom / GW.w;
-		GW.vmat[1][1] = 2.0*GW.zoom / GW.h;
+		GW.vmat[0][0] = 2.0*GW.zoomx / GW.w;
+		GW.vmat[1][1] = 2.0*GW.zoomy / GW.h;
 		GW.vmat[2][2] = 1.0;
-		GW.vmat[0][2] = GW.camx / GW.w;
-		GW.vmat[1][2] = GW.camy / GW.h;
+		GW.vmat[2][0] = GW.camx / GW.w;
+		GW.vmat[2][1] = GW.camy / GW.h;
 		
 		if (!gl_frame())
 			break;
