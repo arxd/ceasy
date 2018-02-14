@@ -47,7 +47,7 @@ void shm_on_exit(int status, void *arg);
 #include <string.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
-#include "util.c"
+#include "logging.c"
 
 
 int shm_init(SharedMem *self, int size)
@@ -74,11 +74,11 @@ int shm_init(SharedMem *self, int size)
 void shm_fini(SharedMem *self)
 {
 	if (self->shmid) {
-		DEBUG("Release shmid");
+		XINFO("Release shmid");
 		shmctl (self->shmid, IPC_RMID, 0);
 	}
 	if (self->mem) {
-		DEBUG("Detach mem segment");
+		XINFO("Detach mem segment");
 		shmdt(self->mem);
 	}
 	memset(self, 0, sizeof(SharedMem));

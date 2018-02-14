@@ -22,7 +22,7 @@ void subproc_signal(SubProc *self);
 #include <unistd.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
-#include "util.c"
+#include "logging.c"
 
 int subproc_init(SubProc *self, const char *path, char *const argv[])
 {
@@ -33,12 +33,12 @@ int subproc_init(SubProc *self, const char *path, char *const argv[])
 		return -1;
 	}
 	if (self->pid > 0) {
-		DEBUG("PID: %d", self->pid);
+		XINFO("PID: %d", self->pid);
 		return self->pid;
 	}
 	// we are the child process so exec
 	execv(path, argv);
-	ABORT(0, "The program '%s' could not be found", path);
+	ABORT("The program '%s' could not be found", path);
 }
 
 int subproc_status(SubProc *self)
@@ -46,8 +46,7 @@ int subproc_status(SubProc *self)
 	if (self->status)
 		return self->status;
 	int wpid = waitpid(self->pid, &self->status, WNOHANG);
-	if (wpid < 0)
-		ABORT(1, "WaitPID Failed %d", wpid);
+	ASSERT( wpid >= 0, "WaitPID Failed %d", wpid);
 	if (wpid == 0)
 		return 0;
 	
@@ -64,14 +63,14 @@ void subproc_fini(SubProc *self)
 {
 	subproc_status(self);
 	if (!self->status) {
-		DEBUG("Killing child %d", self->pid);
+		INFO("Killing child %d", self->pid);
 		kill(self->pid, SIGKILL);
 	} else if (self->status < 0)
-		DEBUG("Child killed by signal %d", -self->status);
+		INFO("Child killed by signal %d", -self->status);
 	else if (self->status == 1)
-		DEBUG("Child exited normally");
+		INFO("Child exited normally");
 	else
-		DEBUG("Child exited with error %d", self->status-1);
+		INFO("Child exited with error %d", self->status-1);
 	waitpid(self->pid, NULL, 0);
 }
 

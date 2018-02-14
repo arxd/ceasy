@@ -6,9 +6,8 @@
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
-#include "util.c"
-#include "window_glfw.c"
-#include "glhelper.c"
+#include "logging.c"
+#include "gl.c"
 #include "subproc.c"
 #include "share.c"
 
@@ -22,13 +21,6 @@ volatile uint8_t *vram;
 Input *input;
 Layer *layers;
 
-void event_callback(int type, float ts, int p1, int p2)
-{
-	printf("EVENT %d\n", type);
-	
-	
-}
-
 Shader g_upscale_shader;
 Shader g_layer_shader;
 
@@ -36,6 +28,8 @@ GLuint g_vb = 0;
 
 FrameBuffer g_fb = {0};
 Texture g_vram_tex = {0, 512, 512, GL_ALPHA, GL_UNSIGNED_BYTE};
+
+const char *gl_name = "Pixie";
 
 void layer_render(Layer *layer)
 {	
@@ -58,33 +52,73 @@ void layer_render(Layer *layer)
 }
 
 
-void gl_context_change(void)
+int main_init(int argc, char* argv[])
+{
+	ASSERT( shm_init(&g_shm, sizeof(IOMem)), "Couldn't created shared memory segment");
+	on_exit(shm_on_exit, &g_shm);
+	io = (IOMem*)g_shm.mem;
+	layers = io->layers;
+	vram = io->vram;
+	input = &io->input;
+	memset(io, 0, sizeof(IOMem));
+
+	char *prog = argv[1];
+	int a;
+	for (a = 0; a < argc-1; ++a)
+		argv[a] = argv[a+1];
+	argv[a] = NULL;
+	argv[0] = alloca(10);
+	snprintf(argv[0], 10, "%x", g_shm.shmid);
+
+	// Fork
+	ASSERT(subproc_init(&g_subproc, prog, argv) >= 0, "Couldn't fork");
+	on_exit(subproc_on_exit, &g_subproc);
+	return 0;
+	
+	// Start initialization
+	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
+	//~ ipc_init(ipc, ipc+1);
+	
+	//~ if (!win_init(256*4,144*4, event_callback))
+		//~ ABORT(3, "win_init failed");
+	//~ on_exit(win_on_exit, 0);
+	
+	
+	//~ while(!(subproc_status(&g_subproc))) {
+		//~ game_update();
+		//~ win_update();
+		//~ subproc_signal(&g_subproc);
+	//~ }
+	
+	
+}
+
+void gl_init(void)
 {
 	//GLfloat bgverts[] = {-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0};
 	GLfloat bggverts[] = {0.0, 0.0, 0.0, 0.1,0.1, 0.0, 0.1,0.1};
 	
 	if (g_fb.id == 0) {
-		DEBUG("First Context Change");
+		INFO("First Context Change");
 		glActiveTexture(GL_TEXTURE0);
 		
 		//char *upscale_args[] = {;
-		if (!shader_init(&g_upscale_shader,V_PASSTHROUGH, F_NEAREST, (char*[]){"aPos", "uSize", "uFramebuffer", NULL}))
-			ABORT(1, "Couldn't create fb shader");
+		ASSERT(shader_init(&g_upscale_shader,V_PASSTHROUGH, F_NEAREST, (char*[]){
+			"aPos", "uSize", "uFramebuffer", NULL}),  "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_upscale_shader);
 
-		char *layer_args[] = {
+		ASSERT(shader_init(&g_layer_shader, V_PASSTHROUGH, F_LAYER, (char*[]){
 			"aPos","uFramebuffer", "uMap", "uMapSize", 
 			"uOffset", "uTiles", "uTileSize", "uTileRowSize", 
 			"uTileBits", "uPalette", "uClip", "uClamp", 
-			"uFlip", "uReverse", "uAux", NULL};
-		if (!shader_init(&g_layer_shader, V_PASSTHROUGH, F_LAYER, layer_args))
-			ABORT(1, "Couldn't create layer shader");
+			"uFlip", "uReverse", "uAux", NULL}), "Couldn't create layer shader");
 		on_exit(shader_on_exit, &g_layer_shader);
+		
 		tex_set(&g_vram_tex, NULL);
 		on_exit(tex_on_exit, &g_vram_tex);
 	}
 	
-	DEBUG("Context change");
+	INFO("Context change");
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	framebuffer_init(&g_fb, 256, 256);
@@ -102,13 +136,8 @@ void gl_context_change(void)
 	
 }
 
-
-
-void game_update(void)
+int gl_frame(void)
 {
-	int w,h;
-	win_size(&w, &h);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, g_fb.id);
 	glViewport(0, 0, 256, 144);
 	glUseProgram(g_layer_shader.id);
@@ -123,60 +152,28 @@ void game_update(void)
 	
 	// upscale it
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0,0,w,h);
+	glViewport(0,0,GW.w,GW.h);
 	
 	glActiveTexture(GL_TEXTURE0);
 
 	glBindTexture(GL_TEXTURE_2D, g_fb.tex.id);
 	glUseProgram(g_upscale_shader.id);
-	glUniform2f(g_upscale_shader.args[1], w, h);
+	glUniform2f(g_upscale_shader.args[1], GW.w, GW.h);
 	glUniform1i(g_upscale_shader.args[2], 0);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 	//~ gl_error_check();
-	
-}
+	input->getchar = key_pop();
+	if (GW.cmd & KCMD_ESCAPE)
+		input->status |= STATUS_CLOSE;
+	input->cmd = GW.cmd;
+	input->alpha = GW.alpha;
+	input->num = GW.num;
+	input->function = GW.function;
+	input->cmd = GW.cmd;
+	input->mod = GW.mod;
 
-int main(int argc, char *argv[])
-{
-	// Setup shared mem
-	if (!shm_init(&g_shm, sizeof(IOMem)))
-		ABORT(1, "Couldn't created shared memory segment");
-	on_exit(shm_on_exit, &g_shm);
-	io = (IOMem*)g_shm.mem;
-	layers = io->layers;
-	vram = io->vram;
-	input = &io->input;
-	DEBUG("Zero Mem");
-	memset(io, 0, sizeof(IOMem));
-
-	char *prog = argv[1];
-	int a;
-	for (a = 0; a < argc-1; ++a)
-		argv[a] = argv[a+1];
-	argv[a] = NULL;
-	argv[0] = alloca(10);
-	snprintf(argv[0], 10, "%x", g_shm.shmid);
-
-	// Fork
-	if (subproc_init(&g_subproc, prog, argv) < 0)
-		ABORT(2, "Couldn't fork");
-	on_exit(subproc_on_exit, &g_subproc);
-	
-	// Start initialization
-	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
-	//~ ipc_init(ipc, ipc+1);
-	
-	if (!win_init(256*4,144*4, event_callback))
-		ABORT(3, "win_init failed");
-	on_exit(win_on_exit, 0);
-		
-	while(!(subproc_status(&g_subproc))) {
-		game_update();
-		win_update();
-		subproc_signal(&g_subproc);
-	}
-
-	ABORT(0, "Goodbye");
+	subproc_signal(&g_subproc);
+	return !subproc_status(&g_subproc);
 }

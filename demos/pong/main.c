@@ -41,13 +41,13 @@ void frame_sync_handler(int frame)
 	// update the ball position
 	ball_set_pos(v2add(GS.xy, GS.v));
 	
-	if (input->alpha & (1<<('a'-'a')))
+	if (input->alpha & KALPHA_A)
 		layers[11].map.y --;
-	if (input->alpha & (1<<('z'-'a')))
+	if (input->alpha & KALPHA_Z)
 		layers[11].map.y ++ ;
-	if (input->alpha & (1<<('o'-'a')))
+	if (input->alpha & KALPHA_O)
 		layers[12].map.y --;
-	if (input->alpha & (1<<('l'-'a')))
+	if (input->alpha &  KALPHA_L)
 		layers[12].map.y ++ ;
 	
 	 // bounce off player 2 paddle ? 

@@ -1,11 +1,13 @@
 # Pixie
 
-Import('env shared_utils')
+Import('env')
 env = env.Clone(CPPPATH="#src/shared" )
 env.HeaderTmpl('pixie')
 env.GLSL('shaders')
 
-pixie_exe = env.Program('pixie', ['server.c'], LIBS=[shared_utils, 'GLESv2', 'glfw'])
+SHARED = map(lambda x: '../shared/'+x, ['gl.c', 'logging.c', 'subproc.c', 'share.c'])
+
+pixie_exe = env.Program('pixie', ['server.c']+SHARED, LIBS=['GLESv2', 'glfw'])
 #~ pixie_lib = env.StaticLibrary('pixie', ['client.c', 'util.c', 'font4x6x1.c'])
 
 env.Install('#bin', pixie_exe)

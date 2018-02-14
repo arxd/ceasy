@@ -3,7 +3,7 @@ print(Platform())
 Import('env')
 env = env.Clone()
 
-src = ['util.c', 'glhelper.c', 'window_glfw.c']
+src = ['logging.c', 'gl.c']
 if Platform().name == 'win32':
 	src += ['subproc_w.c', 'share_mem_w.c']
 else:
@@ -11,6 +11,6 @@ else:
 	
 print(src)
 
-shared_utils = env.Library('shared_utils', src)
+#~ shared_utils = env.Library('shared_utils', src)
 
-Return('shared_utils')
+#~ Return('shared_utils')
