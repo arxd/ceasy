@@ -27,8 +27,8 @@ double now(void);
 #include <sys/shm.h>
 
 
-#ifndef UTIL_C
-#include "util.c"
+#ifndef LOGGING_C
+#include "logging.c"
 #endif
 
 IOMem *io;
@@ -62,11 +62,9 @@ void io_init(const char *shmid_str)
 {
 	char * endptr;
 	int shmid = (int)strtol(shmid_str, &endptr, 16);
-	if (shmid_str == endptr)
-		ABORT(1, "ROM Must be run as an argument to the server");
+	ASSERT (shmid_str != endptr, "ROM Must be run as an argument to the server");
 	io = (IOMem*)shmat(shmid, NULL, 0);
-	if ((void*)io == (void*)-1)
-		ABORT(2, "Couldn't attach shared memory");
+	ASSERT ((void*)io != (void*)-1, "Couldn't attach shared memory");
 
 	input = &io->input;
 	

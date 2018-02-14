@@ -31,8 +31,8 @@ void copy8(uint8_t *dest, uint8_t *src, int words);
 #include "font4x6x1.c"
 #endif
 
-#ifndef UTIL_C
-#include "util.c"
+#ifndef LOGGING_C
+#include "logging.c"
 #endif
 
 IOMem *io;
@@ -107,15 +107,10 @@ void setup_shm(const char *shmid_str)
 {
 	char * endptr;
 	int shmid = (int)strtol(shmid_str, &endptr, 16);
-	if (shmid_str == endptr)
-		ABORT(1, "ROM Must be run as an argument to the server");
+	ASSERT (shmid_str != endptr, "ROM Must be run as an argument to the server");
 	io = (IOMem*)shmat(shmid, NULL, 0);
-	if ((void*)io == (void*)-1)
-		ABORT(2, "Couldn't attache shared memory");
-	
-	
-	signal(SIGUSR1, sig_handler);
-	
+	ASSERT((void*)io != (void*)-1, "Couldn't attache shared memory");
+	signal(SIGUSR1, sig_handler);	
 }
 
 double now(void)

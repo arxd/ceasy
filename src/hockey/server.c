@@ -6,9 +6,8 @@
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
-#include "util.c"
-#include "window_glfw.c"
-#include "glhelper.c"
+#include "logging.c"
+#include "gl.c"
 #include "subproc.c"
 #include "share.c"
 
@@ -37,17 +36,18 @@ GLuint g_player_vb = 0;
 GLuint g_circle_vb = 0;
 GLuint g_rect_vb = 0;
 
-int g_w, g_h;
 Vec3 cam;
 GLfloat view_mat[3][3];
 
+const char *gl_name = "Hockey";
+
 void build_viewmat(void)
 {
-	view_mat[0][0] = (2.0/g_w) * cam.z;
-	view_mat[1][1] = (2.0/g_h) * cam.z;
+	view_mat[0][0] = (2.0/GW.w) * cam.z;
+	view_mat[1][1] = (2.0/GW.h) * cam.z;
 	view_mat[2][2] = 1.0;
-	view_mat[0][2] = (cam.x/g_w);//-g_w/2.0;
-	view_mat[1][2] = (cam.y/g_h);
+	view_mat[0][2] = (cam.x/GW.w);//-g_w/2.0;
+	view_mat[1][2] = (cam.y/GW.h);
 	
 }
 
@@ -64,7 +64,7 @@ void rectangle_render(Vec2 pos, Vec2 scale, float angle, Vec3 color)
 
 void circle_render(Vec2 pos, float r1, float r2, Vec3 color)
 {	
-	glUniform2f(g_circle_shader.args[1], g_w, g_h);
+	glUniform2f(g_circle_shader.args[1], GW.w, GW.h);
 	glUniform2f(g_circle_shader.args[2], pos.x, pos.y);
 	glUniform2f(g_circle_shader.args[3], r1, r1);
 	glUniform1f(g_circle_shader.args[4], r2);	
@@ -75,7 +75,7 @@ void circle_render(Vec2 pos, float r1, float r2, Vec3 color)
 
 void player_render(Vec2 pos, float radius, float angle)
 {	
-	glUniform2f(g_player_shader.args[1], g_w, g_h);
+	glUniform2f(g_player_shader.args[1], GW.w, GW.h);
 	glUniform1f(g_player_shader.args[2], radius);
 	glUniform2f(g_player_shader.args[3], pos.x, pos.y);
 	glUniform1f(g_player_shader.args[4], M_PI*angle/180.0);
@@ -86,33 +86,30 @@ void player_render(Vec2 pos, float radius, float angle)
 }
 
 
-void gl_context_change(void)
+void gl_init(void)
 {
 	
 	if (g_player_shader.id == 0) {
-		DEBUG("First Context Change");
+		INFO("First Context Change");
 
-		if (!shader_init(&g_player_shader, V_PLAYER, F_PLAYER, (char*[]){
+		ASSERT(shader_init(&g_player_shader, V_PLAYER, F_PLAYER, (char*[]){
 			"aPos", "uSize", "uScale", "uOffset", "uAngle", 
-			"uThrust","uGrab", NULL}))
-			ABORT(1, "Couldn't create fb shader");
+			"uThrust","uGrab", NULL}), "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_player_shader);
 
-		if (!shader_init(&g_circle_shader, V_RECT, F_CIRCLE, (char*[]){
+		ASSERT(shader_init(&g_circle_shader, V_RECT, F_CIRCLE, (char*[]){
 			"aPos", "uSize","uOffset", "uScale", "uInnerRadius", "uColor", 
-			 NULL}))
-			ABORT(1, "Couldn't create fb shader");
+			 NULL}), "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_circle_shader);
 		
-		if (!shader_init(&g_rect_shader, V_TRANSCALE, F_SOLID, (char*[]){
+		ASSERT(shader_init(&g_rect_shader, V_TRANSCALE, F_SOLID, (char*[]){
 			"aPos", "uScreen","uTranslate", "uScale",  "uAngle", "uColor", 
-			 NULL}))
-			ABORT(1, "Couldn't create fb shader");
+			 NULL}), "Couldn't create fb shader");
 		on_exit(shader_on_exit, &g_rect_shader);
 	}
 	cam = v3(0.0, 0.0, 100.0);
 
-	DEBUG("Context change");
+	INFO("Context change");
 	glClearColor(0.2, 0.2, 0.2, 1.0);
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -199,26 +196,25 @@ void draw_rink(Vec2 pos, float scale)
 	
 }
 
-void game_update(void)
+int gl_frame(void)
 {
-	win_size(&g_w, &g_h);
 	static float angle = 0.0;
 	
-	if (input->alpha & (1<<('a'-'a')))
+	if (input->alpha & KALPHA_A)
 		cam.x -= 10.0;
-	if (input->alpha & (1<<('d'-'a'))) 
+	if (input->alpha & KALPHA_D) 
 		cam.x += 10.0;
-	if (input->alpha & (1<<('s'-'a'))) 
+	if (input->alpha & KALPHA_S) 
 		cam.y -= 10.0;
-	if (input->alpha & (1<<('w'-'a'))) 
+	if (input->alpha &KALPHA_W) 
 		cam.y += 10.0;
-	if (input->alpha & (1<<('q'-'a'))) 
+	if (input->alpha & KALPHA_Q) 
 		angle += 0.06;
-	if (input->alpha & (1<<('e'-'a'))) 
+	if (input->alpha & KALPHA_E) 
 		angle -= 0.06;
-	if (input->alpha & (1<<('r'-'a'))) 
+	if (input->alpha & KALPHA_R) 
 		cam.z *= 1.1;
-	if (input->alpha & (1<<('f'-'a'))) 
+	if (input->alpha & KALPHA_F) 
 		cam.z /= 1.1;
 	
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -242,19 +238,29 @@ void game_update(void)
 	//~ glVertexAttribPointer(g_player_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
 	//~ glEnableVertexAttribArray(g_player_shader.args[0]);
 	//~ player_render(v2add(v2(400.0, 300.0), v2mult(pos, 100.0)), 100.0, 0.0*time());
+	input->getchar = key_pop();
+	if (GW.cmd & KCMD_ESCAPE)
+		input->status |= STATUS_CLOSE;
+	input->cmd = GW.cmd;
+	input->alpha = GW.alpha;
+	input->num = GW.num;
+	input->function = GW.function;
+	input->cmd = GW.cmd;
+	input->mod = GW.mod;
+
+	subproc_signal(&g_subproc);
+	return !subproc_status(&g_subproc);
 	
 }
 
-int main(int argc, char *argv[])
+int main_init(int argc, char *argv[])
 {
 	// Setup shared mem
-	if (!shm_init(&g_shm, sizeof(IOMem)))
-		ABORT(1, "Couldn't created shared memory segment");
+	ASSERT(shm_init(&g_shm, sizeof(IOMem)), "Couldn't created shared memory segment");
 	on_exit(shm_on_exit, &g_shm);
 	io = (IOMem*)g_shm.mem;
 	input = &io->input;
 
-	DEBUG("Zero Mem");
 	memset(io, 0, sizeof(IOMem));
 
 	io->rink.w =32;
@@ -274,23 +280,7 @@ int main(int argc, char *argv[])
 	snprintf(argv[0], 10, "%x", g_shm.shmid);
 
 	// Fork
-	if (subproc_init(&g_subproc, prog, argv) < 0)
-		ABORT(2, "Couldn't fork");
+	ASSERT(subproc_init(&g_subproc, prog, argv) >= 0, "Couldn't fork");
 	on_exit(subproc_on_exit, &g_subproc);
-	
-	// Start initialization
-	//~ IPC *ipc = (IPC*)(g_shm.mem + 256*256);
-	//~ ipc_init(ipc, ipc+1);
-	
-	if (!win_init(256*4,144*4, event_callback))
-		ABORT(3, "win_init failed");
-	on_exit(win_on_exit, 0);
-		
-	while(!(subproc_status(&g_subproc))) {
-		game_update();
-		win_update();
-		subproc_signal(&g_subproc);
-	}
-
-	ABORT(0, "Goodbye");
+	return 0;
 }

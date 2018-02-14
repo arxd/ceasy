@@ -1,22 +1,22 @@
 import re, os.path
 from subprocess import Popen, PIPE
 
-def htmpl_file_scan(node, env, path):
-	contents = node.get_text_contents()
-	dir = str(node.get_dir())
-	# print(contents);
-	results = re.findall(r'^@include\s+(\S+)', contents, re.M)
-	# print(results)
-	includes = [os.path.join(dir,i) for i in results]
-	# print("SCAN: %s > %s"%(node, includes))
-	return env.File(includes)
+def htmpl_extract(node):
+	return re.findall(r'^@include\s+(\S+)', node.get_text_contents(), re.M)
 
-def header_template_emitter(target, source, env):
-	source += re.compile(r'^@include\s+(\S+)$', re.M).findall(source[0].get_text_contents())
-	#~ print("EMIT: %s"%map(str, source))
-	return (target, source)
+def htmpl_scanner(node, env, path):
+	#~ includes = 
+	dir = str(node.get_dir())
+	#~ print("SCAN: %s > %s"%(node, includes))
+	return env.File([os.path.join(dir,i) for i in htmpl_extract(node)])
+
+def htmpl_emitter(target, source, env):
+	#~ source += re.compile(r'^@include\s+(\S+)$', re.M).findall(source[0].get_text_contents())
+	includes = htmpl_extract(source[0])
+	#~ print("EMIT: %s > %r"%(source[0], map(str, includes)))
+	return (target, source + includes)
 	
-def header_template(target, source, env):
+def htmpl_action(target, source, env):
 	#~ print("BUILD: %s"%source[0])
 	src = open(str(source[0]))
 	dest = open(str(target[0]), 'w')
@@ -60,8 +60,8 @@ def TOOL_SHADER(env):
 
 def TOOL_HDRTMPL(env):
 	env.Append(BUILDERS = {'HeaderTmpl' : Builder(
-		action = header_template,
+		action = htmpl_action,
 		suffix = '.h',
 		src_suffix = '.h.in',
-		source_scanner =  Scanner(function = htmpl_file_scan, skeys = ['.in.h']),
-		emitter = header_template_emitter)})
+		source_scanner =  Scanner(function = htmpl_scanner, skeys = ['.in.h']),
+		emitter = htmpl_emitter)})

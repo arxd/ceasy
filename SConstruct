@@ -1,4 +1,5 @@
 # Main SCons file
+from os.path import join, exists
 
 debug = int(ARGUMENTS.get('debug',3))
 
@@ -9,19 +10,15 @@ else:
 	env.Append(CCFLAGS = '-g')
 env.Append(CCFLAGS = '-DLOG_LEVEL=%d'%debug)
 
-for demo in Glob('demos/*'):
-	if demo not in ['demos/hello', 'demos/pong']:
+for demo in map(str, Glob('demos/*')):
+	SConscript(join(demo, 'SConstruct'), variant_dir=join('build',demo), exports='env' )
+
+shared = SConscript('src/shared/SConscript', variant_dir='build/src/shared', exports='env')
+
+for device in map(str, Glob('src/*')) :
+	if device == 'src/shared':
 		continue
-	SConscript('%s/SConstruct'%demo, variant_dir='build/%s'%demo, exports='env' )
-
-#~ shared_utils = SConscript('src/shared/SConstruct', variant_dir='build/src/shared', exports='env')
-
-
-for device in Glob('src/*') :
-	if str(device) not in ['src/pixie']:
-		continue
-	print("SCONS: %s"%device)
-	SConscript('%s/SConstruct'%device, variant_dir='build/%s'%device, exports='env' )
+	SConscript(join(device,'SConstruct'), variant_dir=join('build',device), exports='env shared' )
 
 Clean('.', 'build')
 Clean('.', 'lib')

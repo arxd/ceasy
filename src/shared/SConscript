@@ -1,0 +1,7 @@
+#shared
+Import('env')
+env = env.Clone()
+objs = {'gl':None, 'share':None, 'logging':None, 'subproc':None}
+for src in objs.keys():
+	objs[src] = env.Object(src+'.c')
+Return('objs')

@@ -6,9 +6,9 @@
 #endif
 
 @include font4x6x1.c
-@include ../shared/logging.c
+@include #src/shared/logging.c
 #define KEY_DEFS_ONLY
-@include ../shared/gl.c
+@include #src/shared/gl.c
 @include iomem.h
 @include client.c
 

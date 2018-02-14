@@ -1,5 +1,5 @@
-#ifndef UTIL_C
-#define UTIL_C
+#ifndef LOGGING_C
+#define LOGGING_C
 
 #include <stdlib.h>
 
