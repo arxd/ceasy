@@ -1,20 +1,24 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <math.h>
-
 #define PIXIE_NOLIB
 #include "pixie.h"
 
 #include "trump.c"
-//~ void draw_num(int x, int y, int num, int color, int size);
-//~ void draw_suit(int x, int y, int suit, int size);
+
+
+void show_num_recursion(int x)
+{ //432
+	if (x/10 != 0)
+		show_num_recursion(x/10);
+	draw_num(128, 72, x%10, 5, 2);
+	//~ putchar(x%10 + '0');
+}
+
 
 
 void show_num(int x)
-{ //231
-	if (x/10 != 0)
-		show_num(x/10);
-	putchar(x%10 + '0');
+{
+	
+	
+	
 }
 
 void draw_ball(int x, int y,int z)
@@ -28,8 +32,9 @@ int main(int argc, char *argv[])
 {	
 	pixie_init(argv[0]); // magic
 	
-	show_num(237587581);
-
+	show_num(432);
+	
+	
 	while(!(input->status & STATUS_CLOSE))
 		sleep(1);
 	
